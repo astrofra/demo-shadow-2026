@@ -591,12 +591,13 @@ function Controller:_apply_leg_pose(side_name)
 
 	plane_normal = safe_normalize(plane_normal, self.current_right * side.sign)
 
-	local upper_rot = hg.ToEuler(make_basis_from_y(knee_world - hip_world, plane_normal))
+	local upper_basis = make_basis_from_y(knee_world - hip_world, plane_normal)
 	local lower_basis = make_basis_from_y(foot_target - knee_world, plane_normal)
 	local foot_pitch = 0.0
 	local foot_yaw = self.params.foot_yaw_offset
 
 	if side_name == "left" then
+		upper_basis = hg.Normalize(upper_basis * hg.RotationMat3(hg.Vec3(0.0, self.params.left_thigh_yaw_offset, 0.0)))
 		foot_yaw = foot_yaw + self.params.left_foot_yaw_compensation
 	end
 
@@ -608,7 +609,7 @@ function Controller:_apply_leg_pose(side_name)
 		foot_pitch = self.params.swing_foot_pitch * math.sin(compute_swing_alpha(self.step_progress) * math.pi)
 	end
 
-	upper_node:GetTransform():SetWorld(hg.TransformationMat4(hip_world, upper_rot, self:_get_world_node_scale(upper_rest.scale)))
+	upper_node:GetTransform():SetWorld(hg.TransformationMat4(hip_world, upper_basis, self:_get_world_node_scale(upper_rest.scale)))
 	lower_node:GetTransform():SetWorld(hg.TransformationMat4(knee_world, lower_basis, self:_get_world_node_scale(lower_rest.scale)))
 	foot_node:GetTransform():SetPosRot(foot_rest.pos, foot_rest.rot + hg.Vec3(foot_pitch, foot_yaw, 0.0))
 end
@@ -830,6 +831,7 @@ local function create_controller(scene, instance_node_name)
 			hips_bob = 0.012,
 			hips_sway = 0.016,
 			swing_foot_pitch = hg.Deg(8.0),
+			left_thigh_yaw_offset = -hg.Deg(90.0),
 			left_calf_yaw_offset = -hg.Deg(90.0),
 			foot_yaw_offset = -hg.Deg(90.0),
 			left_foot_yaw_compensation = hg.Deg(90.0),
