@@ -147,6 +147,22 @@ local function resolve_chain_length(rest_pose)
 	return hg.Len(rest_pose.pos)
 end
 
+local function compute_step_drive(walk_phase)
+	local step_phase = (walk_phase / math.pi) % 1.0
+
+	if step_phase < 0.16 then
+		return 0.0
+	elseif step_phase < 0.26 then
+		return (step_phase - 0.16) / 0.10 * 0.8
+	elseif step_phase < 0.58 then
+		return 1.0
+	elseif step_phase < 0.74 then
+		return 0.35
+	end
+
+	return 0.0
+end
+
 function Controller:_get_view_node(name)
 	local node = self.scene_view:GetNode(self.scene, name)
 	return ensure_valid_node(node, name)
@@ -262,7 +278,10 @@ function Controller:_update_root_motion(dt)
 
 	self.state = "Idle"
 	self.current_speed = 0.0
+	self.desired_speed = 0.0
 	self.distance_to_target = 0.0
+	self.gait_drive = 0.0
+	self.motion_weight = 0.0
 	self.yaw_error = 0.0
 
 	if self.target_world == nil then
@@ -299,7 +318,11 @@ function Controller:_update_root_motion(dt)
 		return move_step
 	end
 
-	self.current_speed = self.params.walk_speed * facing
+	self.desired_speed = self.params.walk_speed * facing
+	self.motion_weight = clamp(self.desired_speed / self.params.walk_speed, 0.0, 1.0)
+	self.walk_phase = self.walk_phase + dt * self.params.walk_cycle_rate * self.motion_weight * math.pi * 2.0
+	self.gait_drive = compute_step_drive(self.walk_phase)
+	self.current_speed = self.desired_speed * self.gait_drive
 	move_step = math.min(distance, self.current_speed * dt)
 	position = position + forward * move_step
 	position.y = self.ground_y
@@ -309,14 +332,8 @@ function Controller:_update_root_motion(dt)
 	return move_step
 end
 
-function Controller:_update_walk_phase(move_step)
-	if move_step > 0.00001 then
-		self.walk_phase = self.walk_phase + move_step / self.params.step_cycle_distance * math.pi * 2.0
-	end
-end
-
 function Controller:_apply_walk_pose()
-	local locomotion_weight = clamp(self.current_speed / self.params.walk_speed, 0.0, 1.0)
+	local locomotion_weight = self.motion_weight
 	local hips_transform = self.view_nodes["mixamorig:Hips"]:GetTransform()
 	local hips_rest = self.rest_pose["mixamorig:Hips"]
 	local sway = math.sin(self.walk_phase) * self.params.hips_sway * locomotion_weight
@@ -356,7 +373,7 @@ end
 
 function Controller:_compute_free_arm_pose(side_name)
 	local side = HAND_SIDES[side_name]
-	local locomotion_weight = clamp(self.current_speed / self.params.walk_speed, 0.0, 1.0)
+	local locomotion_weight = self.motion_weight
 	local phase = self.walk_phase + (side_name == "left" and math.pi or 0.0)
 	local swing = math.sin(phase) * locomotion_weight
 	local shoulder_rest = self.rest_pose[side.shoulder]
@@ -365,10 +382,10 @@ function Controller:_compute_free_arm_pose(side_name)
 	local hand_rest = self.rest_pose[side.hand]
 
 	return {
-		shoulder = shoulder_rest.rot + hg.Vec3(0.0, 0.0, self.params.shoulder_swing * swing * side.sign),
-		arm = arm_rest.rot + hg.Vec3(-self.params.arm_swing * swing, 0.0, 0.0),
-		forearm = forearm_rest.rot + hg.Vec3(math.max(0.0, -swing) * self.params.forearm_swing, 0.0, 0.0),
-		hand = hand_rest.rot
+		shoulder = shoulder_rest.rot + hg.Vec3(0.0, 0.0, side.sign * self.params.relaxed_shoulder_roll + self.params.shoulder_swing * swing * side.sign),
+		arm = arm_rest.rot + hg.Vec3(self.params.relaxed_arm_pitch - self.params.arm_swing * swing, 0.0, side.sign * self.params.relaxed_arm_roll),
+		forearm = forearm_rest.rot + hg.Vec3(self.params.relaxed_forearm_bend + math.max(0.0, -swing) * self.params.forearm_swing, 0.0, 0.0),
+		hand = hand_rest.rot + hg.Vec3(self.params.relaxed_hand_pitch, 0.0, 0.0)
 	}
 end
 
@@ -451,8 +468,7 @@ end
 
 function Controller:Update(dt)
 	self:_restore_controlled_pose()
-	local move_step = self:_update_root_motion(dt)
-	self:_update_walk_phase(move_step)
+	self:_update_root_motion(dt)
 	self:_update_hand_lock_blends(dt)
 	self:_apply_walk_pose()
 	self:_apply_arm_pose("left")
@@ -478,6 +494,7 @@ function Controller:GetDebugState()
 		distance_to_target = self.distance_to_target,
 		yaw_error_deg = math.deg(self.yaw_error),
 		current_speed = self.current_speed,
+		gait_drive = self.gait_drive,
 		left_hand = self.hand_locks.left.target_name or "free",
 		right_hand = self.hand_locks.right.target_name or "free"
 	}
@@ -498,6 +515,9 @@ local function create_controller(scene, instance_node_name)
 		arrived = false,
 		state = "Idle",
 		current_speed = 0.0,
+		desired_speed = 0.0,
+		gait_drive = 0.0,
+		motion_weight = 0.0,
 		distance_to_target = 0.0,
 		yaw_error = 0.0,
 		walk_phase = 0.0,
@@ -507,7 +527,7 @@ local function create_controller(scene, instance_node_name)
 			turn_speed = hg.Deg(240.0),
 			turn_in_place_angle = hg.Deg(42.0),
 			arrive_distance = 0.08,
-			step_cycle_distance = 1.15,
+			walk_cycle_rate = 1.65,
 			hips_bob = 0.035,
 			hips_sway = 0.018,
 			leg_swing = hg.Deg(20.0),
@@ -516,6 +536,11 @@ local function create_controller(scene, instance_node_name)
 			shoulder_swing = hg.Deg(6.0),
 			arm_swing = hg.Deg(18.0),
 			forearm_swing = hg.Deg(10.0),
+			relaxed_shoulder_roll = hg.Deg(10.0),
+			relaxed_arm_pitch = hg.Deg(8.0),
+			relaxed_arm_roll = hg.Deg(78.0),
+			relaxed_forearm_bend = hg.Deg(12.0),
+			relaxed_hand_pitch = hg.Deg(-6.0),
 			hand_lock_blend_speed = 6.0,
 			arm_lock_elbow_bend = hg.Deg(72.0),
 			arm_lock_pitch_limit = hg.Deg(70.0),

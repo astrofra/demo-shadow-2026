@@ -340,6 +340,7 @@ local function draw_compositing_tuning_ui(settings, ui_state, automaton_controll
 			hg.ImGuiText(("Distance: %.3f m"):format(debug_state.distance_to_target))
 			hg.ImGuiText(("Yaw error: %.2f deg"):format(debug_state.yaw_error_deg))
 			hg.ImGuiText(("Speed: %.3f m/s"):format(debug_state.current_speed))
+			hg.ImGuiText(("Gait drive: %.2f"):format(debug_state.gait_drive))
 			hg.ImGuiText(("Left hand: %s"):format(debug_state.left_hand))
 			hg.ImGuiText(("Right hand: %s"):format(debug_state.right_hand))
 			hg.ImGuiText("F1/F2 move path_A <-> path_B")
