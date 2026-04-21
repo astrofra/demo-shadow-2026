@@ -6,7 +6,7 @@ $input v_texcoord0
 SAMPLER2D(u_color, 0);
 SAMPLER2D(u_depth, 1);
 uniform vec4 uCompositingParams[4]; // [0].x: vignette start, [0].y: vignette end, [0].z: vignette strength, [0].w: circular blur strength
-								  // [1].x: crt curvature, [1].y: crt mask density, [1].z: crt mask intensity
+								  // [1].x: crt curvature, [1].y: crt mask density, [1].z: crt mask intensity, [1].w: left light shift
 
 /*
 	tone-mapping operators implementation taken from https://www.shadertoy.com/view/lslGzl
@@ -99,6 +99,10 @@ vec3 SampleCompositedColor(vec2 uv) {
 	return ApplyTopPurpleFade(safe_uv, color);
 }
 
+float ComputePerceivedLuma(vec3 color) {
+	return dot(color, vec3(0.2126, 0.7152, 0.0722));
+}
+
 vec2 WarpCRTUV(vec2 uv) {
 	float curvature = max(uCompositingParams[1].x, 0.0);
 	vec2 screen_pos = uv * 2.0 - vec2(1.0, 1.0);
@@ -109,6 +113,26 @@ vec2 WarpCRTUV(vec2 uv) {
 	warped.y *= 1.0 + curvature * (radius_sq * 0.22 + screen_pos.x * screen_pos.x * 0.12);
 
 	return warped * 0.5 + vec2(0.5, 0.5);
+}
+
+vec2 ApplyLeftLightShift(vec2 uv) {
+	float shift_strength = max(uCompositingParams[1].w, 0.0);
+
+	if (shift_strength <= 0.0) {
+		return uv;
+	}
+
+	vec2 pixel_uv = vec2(1.0 / uResolution.x, 0.0);
+	float left_luma = 0.0;
+	left_luma += ComputePerceivedLuma(SampleCompositedColor(uv - pixel_uv * 1.0));
+	left_luma += ComputePerceivedLuma(SampleCompositedColor(uv - pixel_uv * 2.0));
+	left_luma += ComputePerceivedLuma(SampleCompositedColor(uv - pixel_uv * 3.0));
+	left_luma += ComputePerceivedLuma(SampleCompositedColor(uv - pixel_uv * 4.0));
+	left_luma *= 0.25;
+
+	float displacement_pixels = left_luma * shift_strength;
+	vec2 shifted_uv = uv - pixel_uv * displacement_pixels;
+	return clamp(shifted_uv, vec2(0.0, 0.0), vec2(1.0, 1.0));
 }
 
 float ComputeLensEdgeMask(vec2 uv) {
@@ -182,6 +206,7 @@ vec3 ApplyCRTPhotoScreen(vec2 uv, vec3 color) {
 void main() {
 #if 1
 	vec2 crt_uv = WarpCRTUV(v_texcoord0);
+	crt_uv = ApplyLeftLightShift(crt_uv);
 	vec4 in_sample = Sharpen(crt_uv, uAAAParams[2].y);
 
 	vec3 color = ApplyTopPurpleFade(crt_uv, in_sample.xyz);

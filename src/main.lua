@@ -15,6 +15,7 @@ local DEFAULT_COMPOSITING_SETTINGS = {
 	COMPOSITING_CRT_CURVATURE = 0.08,
 	COMPOSITING_CRT_MASK_DENSITY = 0.45,
 	COMPOSITING_CRT_MASK_INTENSITY = 0.22,
+	COMPOSITING_LEFT_LIGHT_SHIFT = 0.0,
 	COMPOSITING_STRENGTH_VARIATION_AMPLITUDE = 0.2,
 	COMPOSITING_SMOOTH_WOBBLE_SPEED = 0.9,
 	COMPOSITING_JITTER_RESPONSE = 6.0,
@@ -30,6 +31,7 @@ local COMPOSITING_SETTINGS_ORDER = {
 	"COMPOSITING_CRT_CURVATURE",
 	"COMPOSITING_CRT_MASK_DENSITY",
 	"COMPOSITING_CRT_MASK_INTENSITY",
+	"COMPOSITING_LEFT_LIGHT_SHIFT",
 	"COMPOSITING_STRENGTH_VARIATION_AMPLITUDE",
 	"COMPOSITING_SMOOTH_WOBBLE_SPEED",
 	"COMPOSITING_JITTER_RESPONSE",
@@ -45,6 +47,7 @@ local COMPOSITING_UI_FIELDS = {
 	{section = "CRT", key = "COMPOSITING_CRT_CURVATURE", label = "CRT curvature", min = 0.0, max = 0.3, format = "%.3f"},
 	{section = "CRT", key = "COMPOSITING_CRT_MASK_DENSITY", label = "CRT mask density", min = 0.0, max = 2.0, format = "%.3f"},
 	{section = "CRT", key = "COMPOSITING_CRT_MASK_INTENSITY", label = "CRT mask intensity", min = 0.0, max = 1.0, format = "%.3f"},
+	{section = "CRT", key = "COMPOSITING_LEFT_LIGHT_SHIFT", label = "Left light shift", min = 0.0, max = 24.0, format = "%.3f"},
 	{section = "Variation", key = "COMPOSITING_STRENGTH_VARIATION_AMPLITUDE", label = "Variation amplitude", min = 0.0, max = 1.0, format = "%.3f"},
 	{section = "Variation", key = "COMPOSITING_SMOOTH_WOBBLE_SPEED", label = "Smooth wobble speed", min = 0.0, max = 5.0, format = "%.3f"},
 	{section = "Variation", key = "COMPOSITING_JITTER_RESPONSE", label = "Jitter response", min = 0.0, max = 20.0, format = "%.3f"},
@@ -79,6 +82,7 @@ local function sanitize_compositing_settings(settings)
 	settings.COMPOSITING_CRT_CURVATURE = math.max(0.0, settings.COMPOSITING_CRT_CURVATURE)
 	settings.COMPOSITING_CRT_MASK_DENSITY = math.max(0.0, settings.COMPOSITING_CRT_MASK_DENSITY)
 	settings.COMPOSITING_CRT_MASK_INTENSITY = math.max(0.0, settings.COMPOSITING_CRT_MASK_INTENSITY)
+	settings.COMPOSITING_LEFT_LIGHT_SHIFT = math.max(0.0, settings.COMPOSITING_LEFT_LIGHT_SHIFT)
 	settings.COMPOSITING_STRENGTH_VARIATION_AMPLITUDE = math.max(0.0, settings.COMPOSITING_STRENGTH_VARIATION_AMPLITUDE)
 	settings.COMPOSITING_SMOOTH_WOBBLE_SPEED = math.max(0.0, settings.COMPOSITING_SMOOTH_WOBBLE_SPEED)
 	settings.COMPOSITING_JITTER_RESPONSE = math.max(0.0, settings.COMPOSITING_JITTER_RESPONSE)
@@ -207,7 +211,7 @@ local function apply_compositing_settings(pipeline_aaa_config, settings, dt_sec,
 		settings.COMPOSITING_CRT_CURVATURE,
 		settings.COMPOSITING_CRT_MASK_DENSITY,
 		settings.COMPOSITING_CRT_MASK_INTENSITY,
-		0.0
+		settings.COMPOSITING_LEFT_LIGHT_SHIFT
 	)
 end
 
