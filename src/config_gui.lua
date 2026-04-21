@@ -27,7 +27,7 @@ function config_gui()
 
     local config_done = 0 -- 0 = stay, 1 = play demo, 2 = exit without playing the demo
 
-    local win = hg.NewWindow("Martian Melodies - Config", res_x, res_y, 32)
+    local win = hg.NewWindow("Shadow Party Invite - Config", res_x, res_y, 32)
     hg.RenderInit(win) -- , hg.RT_OpenGL)
 
     local imgui_prg = hg.LoadProgramFromAssets('core/shader/imgui')
