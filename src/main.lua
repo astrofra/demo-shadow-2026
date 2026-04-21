@@ -1,5 +1,6 @@
 hg = require("harfang")
 require("config_gui")
+local automaton_controller_lib = require("automaton_controller")
 
 local MAIN_LIGHT_NAME = "MainLight"
 local MAIN_LIGHT_SHADOW_NEAR = 25.0
@@ -278,7 +279,7 @@ local function draw_compositing_slider(settings, field)
 	return changed
 end
 
-local function draw_compositing_tuning_ui(settings, ui_state)
+local function draw_compositing_tuning_ui(settings, ui_state, automaton_controller)
 	local current_section = nil
 
 	hg.ImGuiSetNextWindowPos(hg.Vec2(24, 24), hg.ImGuiCond_Once)
@@ -326,15 +327,89 @@ local function draw_compositing_tuning_ui(settings, ui_state)
 				ui_state.status_message = ("Save failed: %s"):format(save_err)
 			end
 		end
+
+		if automaton_controller ~= nil then
+			local debug_state = automaton_controller:GetDebugState()
+
+			hg.ImGuiSpacing()
+			hg.ImGuiSeparator()
+			hg.ImGuiSpacing()
+			hg.ImGuiText("Automaton")
+			hg.ImGuiText(("State: %s"):format(debug_state.state))
+			hg.ImGuiText(("Target: %s"):format(debug_state.target))
+			hg.ImGuiText(("Distance: %.3f m"):format(debug_state.distance_to_target))
+			hg.ImGuiText(("Yaw error: %.2f deg"):format(debug_state.yaw_error_deg))
+			hg.ImGuiText(("Speed: %.3f m/s"):format(debug_state.current_speed))
+			hg.ImGuiText(("Left hand: %s"):format(debug_state.left_hand))
+			hg.ImGuiText(("Right hand: %s"):format(debug_state.right_hand))
+			hg.ImGuiText("F1/F2 move path_A <-> path_B")
+			hg.ImGuiText("F3/F4 left hand lock/unlock")
+			hg.ImGuiText("F5/F6 right hand lock/unlock")
+
+			if hg.ImGuiButton("Move path_A -> path_B") then
+				automaton_controller:MoveFromNodeToNode("path_A", "path_B")
+			end
+			hg.ImGuiSameLine()
+			if hg.ImGuiButton("Move path_B -> path_A") then
+				automaton_controller:MoveFromNodeToNode("path_B", "path_A")
+			end
+
+			if hg.ImGuiButton("Lock left hand on hand_target_A") then
+				automaton_controller:PlaceLeftHandOnNode("hand_target_A")
+			end
+			hg.ImGuiSameLine()
+			if hg.ImGuiButton("Unlock left hand") then
+				automaton_controller:UnlockLeftHand()
+			end
+
+			if hg.ImGuiButton("Lock right hand on hand_target_A") then
+				automaton_controller:PlaceRightHandOnNode("hand_target_A")
+			end
+			hg.ImGuiSameLine()
+			if hg.ImGuiButton("Unlock right hand") then
+				automaton_controller:UnlockRightHand()
+			end
+		end
 	end
 
 	hg.ImGuiEnd()
+end
+
+local function handle_automaton_debug_controls(keyboard, automaton_controller)
+	if automaton_controller == nil then
+		return
+	end
+
+	if keyboard:Pressed(hg.K_F1) then
+		automaton_controller:MoveFromNodeToNode("path_A", "path_B")
+	end
+
+	if keyboard:Pressed(hg.K_F2) then
+		automaton_controller:MoveFromNodeToNode("path_B", "path_A")
+	end
+
+	if keyboard:Pressed(hg.K_F3) then
+		automaton_controller:PlaceLeftHandOnNode("hand_target_A")
+	end
+
+	if keyboard:Pressed(hg.K_F4) then
+		automaton_controller:UnlockLeftHand()
+	end
+
+	if keyboard:Pressed(hg.K_F5) then
+		automaton_controller:PlaceRightHandOnNode("hand_target_A")
+	end
+
+	if keyboard:Pressed(hg.K_F6) then
+		automaton_controller:UnlockRightHand()
+	end
 end
 
 local function run_demo_3d(win, res_x, res_y, config, compositing_settings, load_status_message)
 	local pipeline = hg.CreateForwardPipeline(2048, false)
 	local res = hg.PipelineResources()
 	local scene = load_main_scene(res)
+	local automaton_controller = automaton_controller_lib.CreateAutomatonController(scene, "automaton-rig-tpose")
 	local pipeline_aaa, pipeline_aaa_config = create_pipeline_aaa(config, compositing_settings)
 	local vignette_modulator = create_strength_modulator("COMPOSITING_VIGNETTE_STRENGTH", 0.0, 0.85)
 	local circular_blur_modulator = create_strength_modulator("COMPOSITING_CIRCULAR_BLUR_STRENGTH", math.pi * 0.37, 1.15)
@@ -346,11 +421,14 @@ local function run_demo_3d(win, res_x, res_y, config, compositing_settings, load
 	local ui_state = {dirty = false, status_message = load_status_message or ""}
 	local frame = 0
 
+	automaton_controller:MoveFromNodeToNode("path_A", "path_B")
+
 	hg.ImGuiInit(10, imgui_prg, imgui_img_prg)
 
 	while hg.IsWindowOpen(win) do
 		mouse:Update()
 		keyboard:Update()
+		handle_automaton_debug_controls(keyboard, automaton_controller)
 
 		if keyboard:Pressed(hg.K_Tab) then
 			show_compositing_ui = not show_compositing_ui
@@ -368,8 +446,10 @@ local function run_demo_3d(win, res_x, res_y, config, compositing_settings, load
 		hg.ImGuiBeginFrame(res_x, res_y, dt, mouse:GetState(), keyboard:GetState())
 
 		if show_compositing_ui then
-			draw_compositing_tuning_ui(compositing_settings, ui_state)
+			draw_compositing_tuning_ui(compositing_settings, ui_state, automaton_controller)
 		end
+
+		automaton_controller:Update(dt_sec)
 
 		if config.enable_aaa then
 			apply_compositing_settings(pipeline_aaa_config, compositing_settings, dt_sec, vignette_modulator, circular_blur_modulator)
