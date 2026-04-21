@@ -5,6 +5,7 @@ $input v_texcoord0
 
 SAMPLER2D(u_color, 0);
 SAMPLER2D(u_depth, 1);
+uniform vec4 uCompositingParams[4]; // [0].x: vignette start, [0].y: vignette end, [0].z: vignette strength, [0].w: circular blur strength
 
 /*
 	tone-mapping operators implementation taken from https://www.shadertoy.com/view/lslGzl
@@ -101,25 +102,33 @@ float ComputeLensEdgeMask(vec2 uv) {
 	// Unit circle in normalized UV space maps to an ellipse inscribed in the screen.
 	vec2 ellipse_pos = uv * 2.0 - vec2(1.0, 1.0);
 	float ellipse_radius = length(ellipse_pos);
-	float mask = smoothstep(0.72, 1.28, ellipse_radius);
+	float vignette_start = uCompositingParams[0].x;
+	float vignette_end = max(uCompositingParams[0].y, vignette_start + 0.0001);
+	float mask = smoothstep(vignette_start, vignette_end, ellipse_radius);
 	return mask * mask;
 }
 
+vec3 ApplyLensVignette(vec3 color, float lens_mask) {
+	float vignette_strength = clamp(uCompositingParams[0].z, 0.0, 1.0);
+	return color * (1.0 - lens_mask * vignette_strength);
+}
+
 vec3 ApplyLensEdgeDefect(vec2 uv, vec3 base_color, float lens_mask) {
+	float blur_strength = max(uCompositingParams[0].w, 0.0);
 	vec2 screen_pos = (uv - vec2(0.5, 0.5)) * uResolution.xy;
 	vec2 radial_dir = screen_pos / max(length(screen_pos), 0.0001);
 	vec2 tangent_dir = vec2(-radial_dir.y, radial_dir.x);
 	vec2 radial_uv = radial_dir / uResolution.xy;
 	vec2 tangent_uv = tangent_dir / uResolution.xy;
 
-	float chroma_pixels = lens_mask * 4.5;
+	float chroma_pixels = lens_mask * 4.5 * blur_strength;
 	vec2 chroma_offset = radial_uv * chroma_pixels;
 	vec3 chroma_color;
 	chroma_color.r = SampleCompositedColor(uv + chroma_offset * 1.25).r;
 	chroma_color.g = SampleCompositedColor(uv - chroma_offset * 0.25).g;
 	chroma_color.b = SampleCompositedColor(uv - chroma_offset * 1.15).b;
 
-	float blur_pixels = lens_mask * 7.0;
+	float blur_pixels = lens_mask * 7.0 * blur_strength;
 	vec2 radial_blur = radial_uv * blur_pixels;
 	vec2 tangent_blur = tangent_uv * blur_pixels * 0.75;
 	vec3 blur_color = SampleCompositedColor(uv) * 0.24;
@@ -132,8 +141,9 @@ vec3 ApplyLensEdgeDefect(vec2 uv, vec3 base_color, float lens_mask) {
 	blur_color += SampleCompositedColor(uv - radial_blur + tangent_blur) * 0.05;
 	blur_color += SampleCompositedColor(uv - radial_blur - tangent_blur) * 0.05;
 
-	vec3 lens_color = mix(chroma_color, blur_color, lens_mask * 0.72);
-	return mix(base_color, lens_color, lens_mask);
+	float lens_mix = clamp(lens_mask * blur_strength, 0.0, 1.0);
+	vec3 lens_color = mix(chroma_color, blur_color, lens_mix * 0.72);
+	return mix(base_color, lens_color, lens_mix);
 }
 
 void main() {
@@ -145,6 +155,7 @@ void main() {
 	if (lens_mask > 0.001) {
 		color = ApplyLensEdgeDefect(v_texcoord0, color, lens_mask);
 	}
+	color = ApplyLensVignette(color, lens_mask);
 	float alpha = in_sample.w;
 #else
 	vec4 in_sample = texture2D(u_color, v_texcoord0);

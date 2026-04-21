@@ -4,6 +4,10 @@ require("config_gui")
 local MAIN_LIGHT_NAME = "MainLight"
 local MAIN_LIGHT_SHADOW_NEAR = 25.0
 local MAIN_LIGHT_SHADOW_FAR = 55.0
+local COMPOSITING_VIGNETTE_START = 0.72
+local COMPOSITING_VIGNETTE_END = 1.28
+local COMPOSITING_VIGNETTE_STRENGTH = 0.5
+local COMPOSITING_CIRCULAR_BLUR_STRENGTH = 10.0
 
 local function open_demo_window(res_x, res_y, default_fullscreen)
 	local win = hg.NewWindow("Demo Shadow 2026", res_x, res_y, 32, default_fullscreen)
@@ -18,7 +22,6 @@ local function create_pipeline_aaa(config)
 	end
 
 	local pipeline_aaa_config = hg.ForwardPipelineAAAConfig()
-	local pipeline_aaa = hg.CreateForwardPipelineAAAFromAssets("core", pipeline_aaa_config, hg.BR_Half, hg.BR_Half)
 
 	if config.low_aaa then
 		pipeline_aaa_config.temporal_aa_weight = 0.2
@@ -28,12 +31,19 @@ local function create_pipeline_aaa(config)
 		pipeline_aaa_config.sample_count = 2
 	end
 
-	pipeline_aaa_config.z_thickness = 4.0
+	pipeline_aaa_config.z_thickness = 1.0
 	pipeline_aaa_config.bloom_bias = 0.61
 	pipeline_aaa_config.bloom_intensity = 1.74
 	pipeline_aaa_config.bloom_threshold = 1.55
 	pipeline_aaa_config.exposure = 1.59
 	pipeline_aaa_config.gamma = 2.09
+	pipeline_aaa_config.compositing_params0 = hg.Vec4(
+		COMPOSITING_VIGNETTE_START,
+		COMPOSITING_VIGNETTE_END,
+		COMPOSITING_VIGNETTE_STRENGTH,
+		COMPOSITING_CIRCULAR_BLUR_STRENGTH
+	)
+	local pipeline_aaa = hg.CreateForwardPipelineAAAFromAssets("core", pipeline_aaa_config, hg.BR_Half, hg.BR_Half)
 
 	return pipeline_aaa, pipeline_aaa_config
 end
