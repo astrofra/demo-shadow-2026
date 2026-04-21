@@ -701,9 +701,14 @@ function Controller:_apply_arm_pose(side_name)
 	local arm_rest = self.rest_pose[side.arm]
 	local forearm_rest = self.rest_pose[side.forearm]
 	local hand_rest = self.rest_pose[side.hand]
+	local free_arm_rot = free_pose.arm
+
+	if side_name == "left" then
+		-- free_arm_rot = free_arm_rot + hg.Vec3(self.params.left_arm_pitch_offset, 0.0, 0.0)
+	end
 
 	shoulder_node:GetTransform():SetPosRot(shoulder_rest.pos, free_pose.shoulder)
-	arm_node:GetTransform():SetPosRot(arm_rest.pos, free_pose.arm)
+	arm_node:GetTransform():SetPosRot(arm_rest.pos, free_arm_rot)
 	forearm_node:GetTransform():SetPosRot(forearm_rest.pos, free_pose.forearm)
 	hand_node:GetTransform():SetPosRot(hand_rest.pos, free_pose.hand)
 
@@ -719,6 +724,10 @@ function Controller:_apply_arm_pose(side_name)
 	local forearm_rot = lerp_vec3(free_pose.forearm, locked_pose.forearm, blend)
 	local hand_pos = lerp_vec3(hg.GetT(free_hand_world), locked_pose.hand_world_pos, blend)
 	local hand_rot = lerp_vec3(hg.GetRotation(free_hand_world), locked_pose.hand_world_rot, blend)
+
+	if side_name == "left" then
+		-- arm_rot = arm_rot + hg.Vec3(self.params.left_arm_pitch_offset, 0.0, 0.0)
+	end
 
 	shoulder_node:GetTransform():SetPosRot(shoulder_rest.pos, shoulder_rot)
 	arm_node:GetTransform():SetPosRot(arm_rest.pos, arm_rot)
@@ -832,6 +841,7 @@ local function create_controller(scene, instance_node_name)
 			free_forearm_bend = hg.Deg(10.0),
 			free_forearm_swing = hg.Deg(8.0),
 			free_hand_local_pitch = hg.Deg(-6.0),
+			left_arm_pitch_offset = -hg.Deg(90.0),
 			hand_lock_blend_speed = 6.0,
 			arm_lock_elbow_bend = hg.Deg(72.0),
 			arm_lock_pitch_limit = hg.Deg(70.0),
