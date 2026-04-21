@@ -6,6 +6,7 @@ $input v_texcoord0
 SAMPLER2D(u_color, 0);
 SAMPLER2D(u_depth, 1);
 uniform vec4 uCompositingParams[4]; // [0].x: vignette start, [0].y: vignette end, [0].z: vignette strength, [0].w: circular blur strength
+								  // [1].x: crt curvature, [1].y: crt mask density, [1].z: crt mask intensity
 
 /*
 	tone-mapping operators implementation taken from https://www.shadertoy.com/view/lslGzl
@@ -98,6 +99,18 @@ vec3 SampleCompositedColor(vec2 uv) {
 	return ApplyTopPurpleFade(safe_uv, color);
 }
 
+vec2 WarpCRTUV(vec2 uv) {
+	float curvature = max(uCompositingParams[1].x, 0.0);
+	vec2 screen_pos = uv * 2.0 - vec2(1.0, 1.0);
+	float radius_sq = dot(screen_pos, screen_pos);
+
+	vec2 warped = screen_pos;
+	warped.x *= 1.0 + curvature * (radius_sq * 0.18 + screen_pos.y * screen_pos.y * 0.10);
+	warped.y *= 1.0 + curvature * (radius_sq * 0.22 + screen_pos.x * screen_pos.x * 0.12);
+
+	return warped * 0.5 + vec2(0.5, 0.5);
+}
+
 float ComputeLensEdgeMask(vec2 uv) {
 	// Unit circle in normalized UV space maps to an ellipse inscribed in the screen.
 	vec2 ellipse_pos = uv * 2.0 - vec2(1.0, 1.0);
@@ -146,19 +159,41 @@ vec3 ApplyLensEdgeDefect(vec2 uv, vec3 base_color, float lens_mask) {
 	return mix(base_color, lens_color, lens_mix);
 }
 
+vec3 ApplyCRTPhotoScreen(vec2 uv, vec3 color) {
+	float density = max(uCompositingParams[1].y, 0.0);
+	float intensity = clamp(uCompositingParams[1].z, 0.0, 1.0);
+
+	if (density <= 0.0 || intensity <= 0.0) {
+		return color;
+	}
+
+	vec2 grid = uv * uResolution.xy * density;
+	float vertical_trame = 0.5 + 0.5 * cos(grid.x * PI * 2.0);
+	float horizontal_trame = 0.5 + 0.5 * cos(grid.y * PI * 2.0);
+	float weave = 0.5 + 0.5 * cos((grid.x + grid.y * 0.18) * PI * 2.0);
+
+	float luminous_mesh = pow(vertical_trame * 0.68 + horizontal_trame * 0.20 + weave * 0.12, 1.15);
+	float glow_gain = mix(1.0, 0.88 + luminous_mesh * 0.24, intensity);
+	float gate_gain = mix(1.0, 0.92 + horizontal_trame * 0.08, intensity * 0.65);
+
+	return color * glow_gain * gate_gain;
+}
+
 void main() {
 #if 1
-	vec4 in_sample = Sharpen(v_texcoord0, uAAAParams[2].y);
+	vec2 crt_uv = WarpCRTUV(v_texcoord0);
+	vec4 in_sample = Sharpen(crt_uv, uAAAParams[2].y);
 
-	vec3 color = ApplyTopPurpleFade(v_texcoord0, in_sample.xyz);
-	float lens_mask = ComputeLensEdgeMask(v_texcoord0);
+	vec3 color = ApplyTopPurpleFade(crt_uv, in_sample.xyz);
+	float lens_mask = ComputeLensEdgeMask(crt_uv);
 	if (lens_mask > 0.001) {
-		color = ApplyLensEdgeDefect(v_texcoord0, color, lens_mask);
+		color = ApplyLensEdgeDefect(crt_uv, color, lens_mask);
 	}
 	color = ApplyLensVignette(color, lens_mask);
 	float alpha = in_sample.w;
 #else
-	vec4 in_sample = texture2D(u_color, v_texcoord0);
+	vec2 crt_uv = WarpCRTUV(v_texcoord0);
+	vec4 in_sample = texture2D(u_color, crt_uv);
 
 	vec3 color = in_sample.xyz;
 	float alpha = in_sample.w;
@@ -173,7 +208,8 @@ void main() {
 	// gamma correction
 	float inv_gamma = uAAAParams[1].y;
 	color = pow(color, vec3_splat(inv_gamma));
+	color = ApplyCRTPhotoScreen(crt_uv, color);
 
 	gl_FragColor = vec4(color, alpha);
-	gl_FragDepth = texture2D(u_depth, v_texcoord0).r;
+	gl_FragDepth = texture2D(u_depth, clamp(crt_uv, vec2(0.0, 0.0), vec2(1.0, 1.0))).r;
 }
