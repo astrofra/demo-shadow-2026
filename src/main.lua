@@ -8,12 +8,63 @@ local COMPOSITING_VIGNETTE_START = 0.72
 local COMPOSITING_VIGNETTE_END = 1.28
 local COMPOSITING_VIGNETTE_STRENGTH = 0.5
 local COMPOSITING_CIRCULAR_BLUR_STRENGTH = 10.0
+local COMPOSITING_STRENGTH_VARIATION_AMPLITUDE = 0.2
+local COMPOSITING_SMOOTH_WOBBLE_SPEED = 0.9
+local COMPOSITING_JITTER_RESPONSE = 6.0
+local COMPOSITING_JITTER_INTERVAL_MIN = 0.1
+local COMPOSITING_JITTER_INTERVAL_MAX = 0.5
+
+math.randomseed(os.time() + math.floor((os.clock() * 1000000) % 1000000))
 
 local function open_demo_window(res_x, res_y, default_fullscreen)
 	local win = hg.NewWindow("Demo Shadow 2026", res_x, res_y, 32, default_fullscreen)
 	hg.RenderInit(win)
 	hg.RenderReset(res_x, res_y, hg.RF_VSync | hg.RF_MSAA4X | hg.RF_MaxAnisotropy)
 	return win
+end
+
+local function random_range(min_value, max_value)
+	return min_value + (max_value - min_value) * math.random()
+end
+
+local function create_strength_modulator(base_value, phase, wobble_speed_scale)
+	return {
+		base_value = base_value,
+		phase = phase,
+		wobble_speed_scale = wobble_speed_scale,
+		elapsed = 0.0,
+		jitter_value = 0.0,
+		jitter_target = 0.0,
+		jitter_time_left = 0.0
+	}
+end
+
+local function update_strength_modulator(modulator, dt_sec)
+	modulator.elapsed = modulator.elapsed + dt_sec
+	modulator.jitter_time_left = modulator.jitter_time_left - dt_sec
+
+	if modulator.jitter_time_left <= 0.0 then
+		modulator.jitter_time_left = random_range(COMPOSITING_JITTER_INTERVAL_MIN, COMPOSITING_JITTER_INTERVAL_MAX)
+		modulator.jitter_target = random_range(-1.0, 1.0)
+	end
+
+	local jitter_follow = 1.0 - math.exp(-COMPOSITING_JITTER_RESPONSE * dt_sec)
+	modulator.jitter_value = modulator.jitter_value + (modulator.jitter_target - modulator.jitter_value) * jitter_follow
+
+	local smooth_value = math.sin(modulator.elapsed * COMPOSITING_SMOOTH_WOBBLE_SPEED * modulator.wobble_speed_scale + modulator.phase)
+	local combined_variation = smooth_value * 0.65 + modulator.jitter_value * 0.35
+	local strength_scale = 1.0 + COMPOSITING_STRENGTH_VARIATION_AMPLITUDE * combined_variation
+
+	return math.max(0.0, modulator.base_value * strength_scale)
+end
+
+local function update_compositing_strengths(pipeline_aaa_config, dt_sec, vignette_modulator, circular_blur_modulator)
+	pipeline_aaa_config.compositing_params0 = hg.Vec4(
+		COMPOSITING_VIGNETTE_START,
+		COMPOSITING_VIGNETTE_END,
+		update_strength_modulator(vignette_modulator, dt_sec),
+		update_strength_modulator(circular_blur_modulator, dt_sec)
+	)
 end
 
 local function create_pipeline_aaa(config)
@@ -82,13 +133,17 @@ local function run_demo_3d(win, res_x, res_y, config)
 	local res = hg.PipelineResources()
 	local scene = load_main_scene(res)
 	local pipeline_aaa, pipeline_aaa_config = create_pipeline_aaa(config)
+	local vignette_modulator = create_strength_modulator(COMPOSITING_VIGNETTE_STRENGTH, 0.0, 0.85)
+	local circular_blur_modulator = create_strength_modulator(COMPOSITING_CIRCULAR_BLUR_STRENGTH, math.pi * 0.37, 1.15)
 	local frame = 0
 
 	while not hg.ReadKeyboard():Key(hg.K_Escape) and hg.IsWindowOpen(win) do
 		local dt = hg.TickClock()
+		local dt_sec = hg.time_to_sec_f(dt)
 		scene:Update(dt)
 
 		if config.enable_aaa then
+			update_compositing_strengths(pipeline_aaa_config, dt_sec, vignette_modulator, circular_blur_modulator)
 			hg.SubmitSceneToPipeline(
 				0,
 				scene,
