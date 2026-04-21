@@ -376,7 +376,7 @@
 			],
 			"disabled": false,
 			"idx": 18,
-			"name": "Light"
+			"name": "MainLight"
 		},
 		{
 			"components": [

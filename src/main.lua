@@ -1,6 +1,10 @@
 hg = require("harfang")
 require("config_gui")
 
+local MAIN_LIGHT_NAME = "MainLight"
+local MAIN_LIGHT_SHADOW_NEAR = 25.0
+local MAIN_LIGHT_SHADOW_FAR = 55.0
+
 local function open_demo_window(res_x, res_y, default_fullscreen)
 	local win = hg.NewWindow("Demo Shadow 2026", res_x, res_y, 32, default_fullscreen)
 	hg.RenderInit(win)
@@ -34,6 +38,21 @@ local function create_pipeline_aaa(config)
 	return pipeline_aaa, pipeline_aaa_config
 end
 
+local function configure_main_light_shadow_range(scene)
+	local main_light_node = scene:GetNode(MAIN_LIGHT_NAME)
+	if not main_light_node:IsValid() then
+		error(('Light "%s" not found in main_scene.scn'):format(MAIN_LIGHT_NAME))
+	end
+
+	local main_light = main_light_node:GetLight()
+	if not main_light:IsValid() then
+		error(('Node "%s" does not have a valid Light component'):format(MAIN_LIGHT_NAME))
+	end
+
+	main_light:SetShadowNear(MAIN_LIGHT_SHADOW_NEAR)
+	main_light:SetShadowFar(MAIN_LIGHT_SHADOW_FAR)
+end
+
 local function load_main_scene(res)
 	local scene = hg.Scene()
 	hg.LoadSceneFromAssets("main_scene.scn", scene, res, hg.GetForwardPipelineInfo())
@@ -43,12 +62,13 @@ local function load_main_scene(res)
 		error('Camera "Camera" not found in main_scene.scn')
 	end
 
+	configure_main_light_shadow_range(scene)
 	scene:SetCurrentCamera(cam)
 	return scene
 end
 
 local function run_demo_3d(win, res_x, res_y, config)
-	local pipeline = hg.CreateForwardPipeline()
+	local pipeline = hg.CreateForwardPipeline(2048, false)
 	local res = hg.PipelineResources()
 	local scene = load_main_scene(res)
 	local pipeline_aaa, pipeline_aaa_config = create_pipeline_aaa(config)

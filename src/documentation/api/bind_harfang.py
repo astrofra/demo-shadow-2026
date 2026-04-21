@@ -1046,6 +1046,10 @@ def bind_scene(gen):
 	gen.bind_method(light, 'SetPSSMSplit', 'void', ['const hg::Vec4 &v'])
 	gen.bind_method(light, 'GetPriority', 'float', [])
 	gen.bind_method(light, 'SetPriority', 'void', ['float v'])
+	gen.bind_method(light, 'GetShadowNear', 'float', [])
+	gen.bind_method(light, 'SetShadowNear', 'void', ['float v'])
+	gen.bind_method(light, 'GetShadowFar', 'float', [])
+	gen.bind_method(light, 'SetShadowFar', 'void', ['float v'])
 
 	gen.end_class(light)
 
@@ -1345,8 +1349,8 @@ def bind_scene(gen):
 		('hg::Light', ['float radius', 'const hg::Color &diffuse', 'const hg::Color &specular', '?float priority', '?hg::LightShadowType shadow_type', '?float shadow_bias'], [])
 	])
 	gen.bind_method_overloads(scene, 'CreateSpotLight', [
-		('hg::Light', ['float radius', 'float inner_angle', 'float outer_angle', 'const hg::Color &diffuse', 'float diffuse_intensity', 'const hg::Color &specular', 'float specular_intensity', '?float priority', '?hg::LightShadowType shadow_type', '?float shadow_bias'], []),
-		('hg::Light', ['float radius', 'float inner_angle', 'float outer_angle', 'const hg::Color &diffuse', 'const hg::Color &specular', '?float priority', '?hg::LightShadowType shadow_type', '?float shadow_bias'], [])
+		('hg::Light', ['float radius', 'float inner_angle', 'float outer_angle', 'const hg::Color &diffuse', 'float diffuse_intensity', 'const hg::Color &specular', 'float specular_intensity', '?float priority', '?hg::LightShadowType shadow_type', '?float shadow_bias', '?float shadow_near', '?float shadow_far'], []),
+		('hg::Light', ['float radius', 'float inner_angle', 'float outer_angle', 'const hg::Color &diffuse', 'const hg::Color &specular', '?float priority', '?hg::LightShadowType shadow_type', '?float shadow_bias', '?float shadow_near', '?float shadow_far'], [])
 	])
 
 	#
@@ -1407,8 +1411,8 @@ def bind_scene(gen):
 		('hg::Node', ['hg::Scene &scene', 'const hg::Mat4 &mtx', 'float radius', 'const hg::Color &diffuse', 'float diffuse_intensity', '?const hg::Color &specular', '?float specular_intensity', '?float priority', '?hg::LightShadowType shadow_type', '?float shadow_bias'], {})
 	])
 	gen.bind_function_overloads('hg::CreateSpotLight', [
-		('hg::Node', ['hg::Scene &scene', 'const hg::Mat4 &mtx', 'float radius', 'float inner_angle', 'float outer_angle', '?const hg::Color &diffuse', '?const hg::Color &specular', '?float priority', '?hg::LightShadowType shadow_type', '?float shadow_bias'], {}),
-		('hg::Node', ['hg::Scene &scene', 'const hg::Mat4 &mtx', 'float radius', 'float inner_angle', 'float outer_angle', 'const hg::Color &diffuse', 'float diffuse_intensity', '?const hg::Color &specular', '?float specular_intensity', '?float priority', '?hg::LightShadowType shadow_type', '?float shadow_bias'], {})
+		('hg::Node', ['hg::Scene &scene', 'const hg::Mat4 &mtx', 'float radius', 'float inner_angle', 'float outer_angle', '?const hg::Color &diffuse', '?const hg::Color &specular', '?float priority', '?hg::LightShadowType shadow_type', '?float shadow_bias', '?float shadow_near', '?float shadow_far'], {}),
+		('hg::Node', ['hg::Scene &scene', 'const hg::Mat4 &mtx', 'float radius', 'float inner_angle', 'float outer_angle', 'const hg::Color &diffuse', 'float diffuse_intensity', '?const hg::Color &specular', '?float specular_intensity', '?float priority', '?hg::LightShadowType shadow_type', '?float shadow_bias', '?float shadow_near', '?float shadow_far'], {})
 	])
 	gen.bind_function_overloads('hg::CreateLinearLight', [
 		('hg::Node', ['hg::Scene &scene', 'const hg::Mat4 &mtx', '?const hg::Color &diffuse', '?const hg::Color &specular', '?float priority', '?hg::LightShadowType shadow_type', '?float shadow_bias', 'const hg::Vec4 &pssm_split'], {}),
@@ -1600,7 +1604,9 @@ static std::vector<hg::ForwardPipelineLight> _GetSceneForwardPipelineLights(cons
 		'float bloom_threshold', 'float bloom_bias', 'float bloom_intensity',
 		'float motion_blur',
 		'float exposure', 'float gamma',
-		'float dof_focus_point', 'float dof_focus_length'
+		'float dof_focus_point', 'float dof_focus_length',
+		'hg::Vec4 compositing_params0', 'hg::Vec4 compositing_params1',
+		'hg::Vec4 compositing_params2', 'hg::Vec4 compositing_params3'
 	])
 	gen.end_class(forward_pipeline_aaa_config)
 
@@ -4256,14 +4262,27 @@ def bind_extras(gen):
 
 
 def bind_audio(gen):
+	gen.add_include('engine/audio_stream.h')
 	gen.add_include('engine/audio_stream_interface.h')
 	
 	gen.bind_named_enum('AudioFrameFormat', ['AFF_LPCM_44KHZ_S16_Mono', 'AFF_LPCM_48KHZ_S16_Mono', 'AFF_LPCM_44KHZ_S16_Stereo', 'AFF_LPCM_48KHZ_S16_Stereo'])
 
 	gen.typedef('AudioStreamRef', 'int')
 	gen.bind_variable('const AudioStreamRef InvalidAudioStreamRef')
+	gen.typedef('AudioTimestamp', 'int64_t')
 
 	gen.add_include('engine/audio.h')
+
+	audio_streamer = gen.begin_class('IAudioStreamer')
+	gen.bind_method(audio_streamer, 'Startup', 'int', [])
+	gen.bind_method(audio_streamer, 'Shutdown', 'void', [])
+	gen.bind_method(audio_streamer, 'Open', 'AudioStreamRef', ['const char *name'])
+	gen.bind_method(audio_streamer, 'Close', 'int', ['AudioStreamRef ref'])
+	gen.bind_method(audio_streamer, 'Seek', 'int', ['AudioStreamRef ref', 'AudioTimestamp t'])
+	gen.bind_method(audio_streamer, 'GetDuration', 'AudioTimestamp', ['AudioStreamRef ref'])
+	gen.bind_method(audio_streamer, 'GetTimeStamp', 'AudioTimestamp', ['AudioStreamRef ref'])
+	gen.bind_method(audio_streamer, 'IsEnded', 'int', ['AudioStreamRef ref'])
+	gen.end_class(audio_streamer)
 	
 	gen.bind_function('hg::AudioInit', 'bool', [])
 	gen.bind_function('hg::AudioShutdown', 'void', [])
@@ -4318,6 +4337,13 @@ static hg::SpatializedSourceState *__ConstructSpatializedSourceState(hg::Mat4 mt
 	gen.bind_function('hg::StreamOGGAssetStereo', 'hg::SourceRef', ['const char *name', 'const hg::StereoSourceState &state'], {'rval_constants_group': 'SourceRef'})
 	gen.bind_function('hg::StreamOGGFileSpatialized', 'hg::SourceRef', ['const char *path', 'const hg::SpatializedSourceState &state'], {'rval_constants_group': 'SourceRef'})
 	gen.bind_function('hg::StreamOGGAssetSpatialized', 'hg::SourceRef', ['const char *name', 'const hg::SpatializedSourceState &state'], {'rval_constants_group': 'SourceRef'})
+
+	gen.bind_function('hg::MakeAudioStreamer', 'IAudioStreamer', ['const char *module_path'])
+	gen.bind_function('hg::IsValid', 'bool', ['IAudioStreamer &streamer'])
+	gen.bind_function('hg::StreamAudioFileStereo', 'hg::SourceRef', ['IAudioStreamer &streamer', 'const char *path', 'const hg::StereoSourceState &state'], {'rval_constants_group': 'SourceRef'})
+	gen.bind_function('hg::StreamAudioFileSpatialized', 'hg::SourceRef', ['IAudioStreamer &streamer', 'const char *path', 'const hg::SpatializedSourceState &state'], {'rval_constants_group': 'SourceRef'})
+	gen.bind_function('hg::StreamModuleFileStereo', 'hg::SourceRef', ['const char *path', 'const hg::StereoSourceState &state'], {'rval_constants_group': 'SourceRef'})
+	gen.bind_function('hg::StreamModuleFileSpatialized', 'hg::SourceRef', ['const char *path', 'const hg::SpatializedSourceState &state'], {'rval_constants_group': 'SourceRef'})
 
 	gen.bind_function('hg::GetSourceDuration', 'hg::time_ns', ['hg::SourceRef source'], {'constants_group': {'source': 'SourceRef'}})
 	gen.bind_function('hg::GetSourceTimecode', 'hg::time_ns', ['hg::SourceRef source'], {'constants_group': {'source': 'SourceRef'}})
