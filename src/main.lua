@@ -231,12 +231,13 @@ local function create_pipeline_aaa(config, compositing_settings)
 		pipeline_aaa_config.sample_count = 2
 	end
 
-	pipeline_aaa_config.z_thickness = 1.0
+	pipeline_aaa_config.z_thickness = 0.01
 	pipeline_aaa_config.bloom_bias = 0.61
 	pipeline_aaa_config.bloom_intensity = 1.74 * 1.1
 	pipeline_aaa_config.bloom_threshold = 1.55
 	pipeline_aaa_config.exposure = 1.59 * 1.1
 	pipeline_aaa_config.gamma = 2.09
+	pipeline_aaa_config.motion_blur = 0.0
 	apply_compositing_settings(pipeline_aaa_config, compositing_settings)
 
 	local pipeline_aaa = hg.CreateForwardPipelineAAAFromAssets("core", pipeline_aaa_config, hg.BR_Half, hg.BR_Half)

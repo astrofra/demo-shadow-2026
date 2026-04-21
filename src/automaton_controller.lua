@@ -396,7 +396,7 @@ function Controller:_compute_step_target(side_name)
 	local hips_position = get_world_position(self.view_nodes["mixamorig:Hips"])
 	local step_length_min = self:_scaled_distance(self.params.step_length_min)
 	local step_length_max = self:_scaled_distance(self.params.step_length_max)
-	local step_length = self:_scaled_distance(self.params.step_length_base + self.desired_speed * self.params.step_length_speed_scale)
+	local step_length = self:_scaled_distance(self.params.step_length_base + self.locomotion_speed * self.params.step_length_speed_scale)
 
 	step_length = clamp(step_length, step_length_min, step_length_max)
 	step_length = math.min(step_length, math.max(self.distance_to_target, 0.0))
@@ -473,13 +473,15 @@ function Controller:_update_root_motion(dt)
 	self.desired_speed = 0.0
 	self.distance_to_target = 0.0
 	self.gait_drive = 0.0
-	self.motion_weight = 0.0
+	self.motion_weight = clamp(self.locomotion_speed / self.params.walk_speed, 0.0, 1.0)
 	self.yaw_error = 0.0
 	self.current_forward = forward_from_yaw(rotation.y)
 	self.current_right = right_from_yaw(rotation.y)
 	self.desired_direction = self.current_forward
 
 	if self.target_world == nil then
+		self.locomotion_speed = move_toward(self.locomotion_speed, 0.0, self.params.speed_deceleration * dt)
+		self.motion_weight = clamp(self.locomotion_speed / self.params.walk_speed, 0.0, 1.0)
 		self:_update_footstep_state(dt)
 		return move_step
 	end
@@ -513,21 +515,28 @@ function Controller:_update_root_motion(dt)
 
 	local facing = clamp(hg.Dot(self.current_forward, desired_direction), 0.0, 1.0)
 	self.desired_speed = self.params.walk_speed * facing
-	self.motion_weight = clamp(self.desired_speed / self.params.walk_speed, 0.0, 1.0)
+	self.locomotion_speed = move_toward(
+		self.locomotion_speed,
+		self.desired_speed,
+		(self.desired_speed > self.locomotion_speed and self.params.speed_acceleration or self.params.speed_deceleration) * dt
+	)
+	self.motion_weight = clamp(self.locomotion_speed / self.params.walk_speed, 0.0, 1.0)
 
 	if math.abs(yaw_error) > self.params.turn_in_place_angle and not self.step_active then
+		self.locomotion_speed = move_toward(self.locomotion_speed, 0.0, self.params.speed_deceleration * dt)
+		self.motion_weight = clamp(self.locomotion_speed / self.params.walk_speed, 0.0, 1.0)
 		self.state = "TurnInPlace"
 		self:_update_footstep_state(dt)
 		return move_step
 	end
 
-	if not self.step_active and self.motion_weight > 0.0 then
+	if not self.step_active and self.motion_weight > self.params.step_start_weight then
 		self:_begin_step()
 	end
 
 	self:_update_footstep_state(dt)
 	self.gait_drive = self.step_active and compute_step_drive(self.step_progress) or 0.0
-	self.current_speed = self.desired_speed * self.gait_drive
+	self.current_speed = self.locomotion_speed * self.gait_drive
 
 	move_step = math.min(distance, self.current_speed * dt)
 	position = position + self.current_forward * move_step
@@ -592,7 +601,7 @@ function Controller:_apply_leg_pose(side_name)
 
 	upper_node:GetTransform():SetWorld(hg.TransformationMat4(hip_world, upper_rot, self:_get_world_node_scale(upper_rest.scale)))
 	lower_node:GetTransform():SetWorld(hg.TransformationMat4(knee_world, lower_rot, self:_get_world_node_scale(lower_rest.scale)))
-	foot_node:GetTransform():SetPosRot(foot_rest.pos, foot_rest.rot + hg.Vec3(foot_pitch, 0.0, 0.0))
+	foot_node:GetTransform():SetPosRot(foot_rest.pos, foot_rest.rot + hg.Vec3(foot_pitch, self.params.foot_yaw_offset, 0.0))
 end
 
 function Controller:_apply_walk_pose()
@@ -725,6 +734,7 @@ function Controller:GetDebugState()
 		gait_drive = self.gait_drive,
 		support_side = self.support_side,
 		step_progress = self.step_progress,
+		locomotion_speed = self.locomotion_speed,
 		left_hand = self.hand_locks.left.target_name or "free",
 		right_hand = self.hand_locks.right.target_name or "free"
 	}
@@ -746,6 +756,7 @@ local function create_controller(scene, instance_node_name)
 		state = "Idle",
 		current_speed = 0.0,
 		desired_speed = 0.0,
+		locomotion_speed = 0.0,
 		gait_drive = 0.0,
 		motion_weight = 0.0,
 		distance_to_target = 0.0,
@@ -763,11 +774,11 @@ local function create_controller(scene, instance_node_name)
 		desired_direction = forward_from_yaw(instance_node:GetTransform():GetRot().y),
 		ground_y = instance_node:GetTransform():GetPos().y,
 		params = {
-			walk_speed = 2.1,
+			walk_speed = 1.8,
 			turn_speed = hg.Deg(240.0),
 			turn_in_place_angle = hg.Deg(42.0),
 			arrive_distance = 0.08,
-			step_duration = 0.34,
+			step_duration = 0.48,
 			step_length_min = 0.18,
 			step_length_max = 0.46,
 			step_length_base = 0.18,
@@ -778,11 +789,15 @@ local function create_controller(scene, instance_node_name)
 			foot_spacing = 0.12,
 			foot_lift_height = 0.11,
 			step_settle_weight = 0.2,
+			step_start_weight = 0.08,
+			speed_acceleration = 1.8,
+			speed_deceleration = 2.9,
 			knee_forward_bias = 1.1,
 			knee_outward_bias = 0.35,
 			hips_bob = 0.012,
 			hips_sway = 0.016,
 			swing_foot_pitch = hg.Deg(8.0),
+			foot_yaw_offset = -hg.Deg(90.0),
 			free_hand_lateral = 0.06,
 			free_hand_down = 0.46,
 			free_hand_forward = 0.05,
