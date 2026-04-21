@@ -385,6 +385,7 @@ function Controller:_reset_gait_state()
 	self.swing_side = self.support_side == "left" and "right" or "left"
 	self.step_active = false
 	self.step_progress = 0.0
+	self.step_pause_timer = 0.0
 	self.walk_phase = self.support_side == "left" and 0.0 or math.pi
 	self.current_forward = facing
 	self.current_right = right_from_yaw(root_rotation.y)
@@ -414,7 +415,7 @@ function Controller:_compute_step_target(side_name)
 end
 
 function Controller:_begin_step()
-	if self.step_active then
+	if self.step_active or self.step_pause_timer > 0.0 then
 		return
 	end
 
@@ -434,6 +435,7 @@ function Controller:_complete_step()
 	self.swing_side = self.support_side == "left" and "right" or "left"
 	self.step_progress = 0.0
 	self.step_active = false
+	self.step_pause_timer = self.params.step_pause_duration
 end
 
 function Controller:_update_footstep_state(dt)
@@ -441,6 +443,7 @@ function Controller:_update_footstep_state(dt)
 	self.feet.right.current_world = copy_vec3(self.feet.right.planted_world)
 
 	if not self.step_active then
+		self.step_pause_timer = math.max(0.0, self.step_pause_timer - dt)
 		self.walk_phase = self.support_side == "left" and 0.0 or math.pi
 		return
 	end
@@ -544,6 +547,10 @@ function Controller:_update_root_motion(dt)
 	instance_transform:SetPos(position)
 	self.distance_to_target = math.max(0.0, distance - move_step)
 	self.state = move_step > 0.0 and "Walk" or "TurnInPlace"
+
+	if not self.step_active and self.step_pause_timer > 0.0 and math.abs(yaw_error) <= self.params.turn_in_place_angle then
+		self.state = "StepPause"
+	end
 
 	if self.distance_to_target <= arrive_distance and not self.step_active then
 		self.state = "Arrived"
@@ -768,6 +775,7 @@ function Controller:GetDebugState()
 		gait_drive = self.gait_drive,
 		support_side = self.support_side,
 		step_progress = self.step_progress,
+		step_pause_timer = self.step_pause_timer,
 		locomotion_speed = self.locomotion_speed,
 		left_hand = self.hand_locks.left.target_name or "free",
 		right_hand = self.hand_locks.right.target_name or "free"
@@ -800,6 +808,7 @@ local function create_controller(scene, instance_node_name)
 		swing_side = "right",
 		step_active = false,
 		step_progress = 0.0,
+		step_pause_timer = 0.0,
 		instance_scale = copy_vec3(instance_node:GetTransform():GetScale()),
 		uniform_scale = math.max(average_abs_scale(instance_node:GetTransform():GetScale()), 0.0001),
 		foot_ground_y = instance_node:GetTransform():GetPos().y,
@@ -822,6 +831,7 @@ local function create_controller(scene, instance_node_name)
 			arrival_step_scale = 0.7,
 			foot_spacing = 0.12,
 			foot_lift_height = 0.11,
+			step_pause_duration = 0.5,
 			step_settle_weight = 0.2,
 			step_start_weight = 0.08,
 			speed_acceleration = 1.8,
