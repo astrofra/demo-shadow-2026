@@ -1,11 +1,22 @@
 {
+	"cameras": [
+		{
+			"fov": 1.0541753768920898,
+			"ortho": false,
+			"size": 1.0,
+			"zrange": {
+				"zfar": 1000.0,
+				"znear": 0.009999999776482582
+			}
+		}
+	],
 	"canvas": {
 		"clear_color": true,
 		"clear_z": true,
 		"color": [
-			0,
-			0,
-			0,
+			20,
+			10,
+			34,
 			255
 		]
 	},
@@ -17,15 +28,15 @@
 			255
 		],
 		"brdf_map": "core/pbr/brdf.dds",
-		"current_camera": null,
+		"current_camera": 21,
 		"fog_color": [
-			255,
-			255,
-			255,
+			17,
+			9,
+			23,
 			255
 		],
-		"fog_far": 0.0,
-		"fog_near": 0.0,
+		"fog_far": 2500.0,
+		"fog_near": 50.0,
 		"probe": {
 			"irradiance_map": "probes/satara_night_no_lamps_1k.hdr.irradiance",
 			"parallax": 0.0,
@@ -52,15 +63,15 @@
 	"lights": [
 		{
 			"diffuse": [
-				255,
-				255,
+				80,
+				155,
 				255,
 				255
 			],
-			"diffuse_intensity": 1.0,
+			"diffuse_intensity": 4.0,
 			"inner_angle": 9.999999747378752e-05,
-			"outer_angle": 0.8482265472412109,
-			"priority": 0.0,
+			"outer_angle": 0.5026460886001587,
+			"priority": 1.0,
 			"pssm_split": [
 				10.0,
 				50.0,
@@ -68,16 +79,74 @@
 				200.0
 			],
 			"radius": 0.0,
-			"shadow_bias": 9.999999747378752e-05,
+			"shadow_bias": 0.0,
 			"shadow_type": "map",
 			"specular": [
 				255,
-				255,
+				173,
+				80,
+				255
+			],
+			"specular_intensity": 25.0,
+			"type": "spot"
+		},
+		{
+			"diffuse": [
+				117,
+				187,
 				255,
 				255
 			],
-			"specular_intensity": 1.0,
+			"diffuse_intensity": 5.0,
+			"inner_angle": 9.999999747378752e-05,
+			"outer_angle": 0.36651739478111267,
+			"priority": -1.0,
+			"pssm_split": [
+				10.0,
+				50.0,
+				100.0,
+				200.0
+			],
+			"radius": 14.399999618530273,
+			"shadow_bias": 9.999999747378752e-05,
+			"shadow_type": "none",
+			"specular": [
+				255,
+				198,
+				75,
+				255
+			],
+			"specular_intensity": 5.0,
 			"type": "spot"
+		},
+		{
+			"diffuse": [
+				0,
+				77,
+				255,
+				255
+			],
+			"diffuse_intensity": 2.0,
+			"inner_angle": 0.5235987901687622,
+			"outer_angle": 0.7853981852531433,
+			"priority": -1.0,
+			"pssm_split": [
+				10.0,
+				50.0,
+				100.0,
+				200.0
+			],
+			"radius": 2.299999952316284,
+			"shadow_bias": 9.999999747378752e-05,
+			"shadow_type": "none",
+			"specular": [
+				255,
+				154,
+				0,
+				255
+			],
+			"specular_intensity": 5.0,
+			"type": "point"
 		}
 	],
 	"nodes": [
@@ -101,7 +170,7 @@
 				4294967295,
 				4294967295
 			],
-			"disabled": false,
+			"disabled": true,
 			"idx": 1,
 			"name": "ground"
 		},
@@ -308,6 +377,42 @@
 			"disabled": false,
 			"idx": 18,
 			"name": "Light"
+		},
+		{
+			"components": [
+				19,
+				4294967295,
+				4294967295,
+				1,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 19,
+			"name": "Light"
+		},
+		{
+			"components": [
+				20,
+				4294967295,
+				4294967295,
+				2,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 20,
+			"name": "LightHouse"
+		},
+		{
+			"components": [
+				21,
+				0,
+				4294967295,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 21,
+			"name": "Camera"
 		}
 	],
 	"objects": [
@@ -328,7 +433,7 @@
 					"textures": [
 						{
 							"name": "uBaseOpacityMap",
-							"path": "props/desert_house/house_color.tga",
+							"path": "props/desert_house/house_color.png",
 							"stage": 0
 						}
 					],
@@ -442,6 +547,18 @@
 					"face_culling": "cw",
 					"flags": [],
 					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/desert_house/house_pieces_color.png",
+							"stage": 0
+						},
+						{
+							"name": "uNormalMap",
+							"path": "props/desert_house/house_pieces_normal.png",
+							"stage": 2
+						}
+					],
 					"values": [
 						{
 							"name": "uBaseOpacityColor",
@@ -497,6 +614,13 @@
 					"face_culling": "cw",
 					"flags": [],
 					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/desert_house/wood_pieces_color.png",
+							"stage": 0
+						}
+					],
 					"values": [
 						{
 							"name": "uBaseOpacityColor",
@@ -555,7 +679,7 @@
 					"textures": [
 						{
 							"name": "uBaseOpacityMap",
-							"path": "props/desert_house/saloon_color.tga",
+							"path": "props/desert_house/saloon_color.png",
 							"stage": 0
 						}
 					],
@@ -669,6 +793,18 @@
 					"face_culling": "cw",
 					"flags": [],
 					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/desert_house/house_pieces_color.png",
+							"stage": 0
+						},
+						{
+							"name": "uNormalMap",
+							"path": "props/desert_house/house_pieces_normal.png",
+							"stage": 2
+						}
+					],
 					"values": [
 						{
 							"name": "uBaseOpacityColor",
@@ -724,6 +860,18 @@
 					"face_culling": "cw",
 					"flags": [],
 					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/desert_house/house_pieces_color.png",
+							"stage": 0
+						},
+						{
+							"name": "uNormalMap",
+							"path": "props/desert_house/house_pieces_normal.png",
+							"stage": 2
+						}
+					],
 					"values": [
 						{
 							"name": "uBaseOpacityColor",
@@ -779,6 +927,13 @@
 					"face_culling": "cw",
 					"flags": [],
 					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/desert_house/wood_pieces_color.png",
+							"stage": 0
+						}
+					],
 					"values": [
 						{
 							"name": "uBaseOpacityColor",
@@ -1008,7 +1163,7 @@
 					"textures": [
 						{
 							"name": "uBaseOpacityMap",
-							"path": "props/desert_house/leaves_color.tga",
+							"path": "props/desert_house/leaves_color.png",
 							"stage": 0
 						}
 					],
@@ -1365,7 +1520,7 @@
 					"textures": [
 						{
 							"name": "uBaseOpacityMap",
-							"path": "props/desert_house/reservoir_color.tga",
+							"path": "props/desert_house/reservoir_color.png",
 							"stage": 0
 						},
 						{
@@ -1412,7 +1567,7 @@
 					"write_z": true
 				},
 				{
-					"blend_mode": "opaque",
+					"blend_mode": "alpha",
 					"depth_test": "less",
 					"face_culling": "cw",
 					"flags": [],
@@ -1420,7 +1575,7 @@
 					"textures": [
 						{
 							"name": "uBaseOpacityMap",
-							"path": "props/desert_house/reservoir_shadow.tga",
+							"path": "props/desert_house/reservoir_shadow.png",
 							"stage": 0
 						}
 					],
@@ -1429,9 +1584,9 @@
 							"name": "uBaseOpacityColor",
 							"type": "vec4",
 							"value": [
-								0.5,
-								0.5,
-								0.5,
+								0.0,
+								0.0,
+								0.0,
 								1.0
 							]
 						},
@@ -1439,9 +1594,9 @@
 							"name": "uOcclusionRoughnessMetalnessColor",
 							"type": "vec4",
 							"value": [
-								1.0,
-								0.5,
-								0.25,
+								0.0,
+								0.0,
+								0.0,
 								0.0
 							]
 						},
@@ -1479,6 +1634,18 @@
 					"face_culling": "cw",
 					"flags": [],
 					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/desert_house/ground_color.png",
+							"stage": 0
+						},
+						{
+							"name": "uNormalMap",
+							"path": "props/desert_house/ground_normal.png",
+							"stage": 2
+						}
+					],
 					"values": [
 						{
 							"name": "uBaseOpacityColor",
@@ -1537,7 +1704,7 @@
 					"textures": [
 						{
 							"name": "uBaseOpacityMap",
-							"path": "props/desert_house/walls_color.tga",
+							"path": "props/desert_house/walls_color.png",
 							"stage": 0
 						},
 						{
@@ -1861,19 +2028,19 @@
 		{
 			"parent": null,
 			"pos": [
-				-25.632080078125,
-				0.0,
-				23.452392578125
+				13.487442970275879,
+				3.814697265625e-06,
+				21.413883209228516
 			],
 			"rot": [
-				90.0,
+				89.99998474121094,
 				0.0,
 				0.0
 			],
 			"scl": [
 				1.0,
-				1.0,
-				1.0
+				0.9999999403953552,
+				0.9999999403953552
 			]
 		},
 		{
@@ -1920,14 +2087,68 @@
 				-17.066307067871094
 			],
 			"rot": [
-				68.13285827636719,
-				35.566978454589844,
-				33.56864547729492
+				68.13285064697266,
+				35.56697463989258,
+				33.568641662597656
 			],
 			"scl": [
 				0.9999998211860657,
 				0.9999998807907104,
 				1.0
+			]
+		},
+		{
+			"parent": 15,
+			"pos": [
+				-3.6243410110473633,
+				-4.529991149902344,
+				-1.027187863655854e-07
+			],
+			"rot": [
+				-26.256088256835938,
+				152.33575439453125,
+				-166.94361877441406
+			],
+			"scl": [
+				0.9999998807907104,
+				0.9999995827674866,
+				0.9999995827674866
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				3.717487335205078,
+				3.8181700706481934,
+				-2.4716014862060547
+			],
+			"rot": [
+				-0.0,
+				0.0,
+				0.0
+			],
+			"scl": [
+				1.0,
+				1.0,
+				1.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				16.45880889892578,
+				3.9319510459899902,
+				-17.736343383789063
+			],
+			"rot": [
+				4.010815143585205,
+				-37.242679595947266,
+				0.0
+			],
+			"scl": [
+				1.0,
+				0.9999823570251465,
+				0.9999814033508301
 			]
 		}
 	]

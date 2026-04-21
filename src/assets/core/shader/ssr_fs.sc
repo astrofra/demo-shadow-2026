@@ -83,11 +83,11 @@ void main() {
 
 				attr0 = texelFetch(u_attr0, ivec2(hit_pixel), 0);
 
-				float log_depth = ComputeRayLogDepth(uMainProjection, hit_point);
+				// float log_depth = ComputeRayLogDepth(uMainProjection, hit_point);
 
 				vec4 ss_output = vec4(0.0, 0.0, 0.0, 1.0); // assume backface hit
-				if (dot(attr0.xyz, ray_d_spread) < 0.0 && hit_point.z <= log_depth)
-					ss_output = vec4(texture2D(u_color, uv - vel * uv_ratio).xyz, 1.0); // front face hit
+				if (dot(attr0.xyz, ray_d_spread) < 0.0 /* && hit_point.z <= log_depth */)
+					ss_output = vec4(texture2D(u_color, uv - vel * uv_ratio).xyz * 2.0, 1.0); // front face hit
 
 				color += mix(fallback, ss_output, k);
 			} else {

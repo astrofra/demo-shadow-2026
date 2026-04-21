@@ -7,12 +7,55 @@ $input vWorldPos, vNormal, vTangent, vBinormal, vTexCoord0, vTexCoord1, vLinearS
 uniform vec4 uBaseOpacityColor;
 uniform vec4 uOcclusionRoughnessMetalnessColor;
 uniform vec4 uSelfColor;
+uniform vec4 uAmbient; // x, y: min, max / z : pow
+uniform vec4 uColorMul;
+uniform vec4 uAlphaCut;
+uniform vec4 uFog; // x = fog contribution (1.0 default)
+uniform vec4 uSelf; // x = multiply, y = pow
 
 // Texture slots
 SAMPLER2D(uBaseOpacityMap, 0);
 SAMPLER2D(uOcclusionRoughnessMetalnessMap, 1);
 SAMPLER2D(uNormalMap, 2);
 SAMPLER2D(uSelfMap, 4);
+SAMPLER2D(uAmbientMap, 6);
+
+float map(float value, float min1, float max1, float min2, float max2) {
+  return min2 + (value - min1) * (max2 - min2) / (max1 - min1);
+}
+
+float ComputeUnifiedVignette(vec2 uv, vec2 center) {
+	vec2 delta = uv - center;
+	delta.x *= uResolution.x / max(uResolution.y, 1.0);
+	delta.y *= 1.15;
+
+	float radial = dot(delta, delta);
+	return 1.0 - smoothstep(0.08, 0.82, radial);
+}
+
+vec3 ApplyUnifiedVignette(vec3 color, vec2 uv) {
+	float vignette = ComputeUnifiedVignette(uv, vec2(0.5, 0.44));
+	vec3 edge_tint = vec3(0.78, 0.56, 0.98);
+	vec3 tinted_color = color * mix(edge_tint, vec3(1.0, 1.0, 1.0), vignette);
+	float edge_shade = mix(0.42, 1.0, vignette);
+	return tinted_color * edge_shade;
+}
+
+float ComputeLuminance(vec3 color) {
+	return dot(color, vec3(0.2126, 0.7152, 0.0722));
+}
+
+vec3 ConvergeDarkColor(vec3 color) {
+	vec3 shadow_tint = vec3(21.0 / 255.0, 1.0 / 255.0, 31.0 / 255.0);
+	vec3 black_floor = shadow_tint * 0.015;
+	float color_luminance = max(ComputeLuminance(color), 1e-4);
+	float tint_luminance = max(ComputeLuminance(shadow_tint), 1e-4);
+	vec3 luminance_preserved_tint = shadow_tint * (color_luminance / tint_luminance);
+	float near_black = 1.0 - smoothstep(0.0, 0.08, color_luminance);
+	float tint_amount = pow(near_black, 2.8) * 0.30;
+	color = mix(color, luminance_preserved_tint, tint_amount);
+	return max(color, black_floor);
+}
 
 //
 float LightAttenuation(vec3 L, vec3 D, float dist, float attn, float inner_rim, float outer_rim) {
@@ -23,6 +66,7 @@ float LightAttenuation(vec3 L, vec3 D, float dist, float attn, float inner_rim, 
 	if (outer_rim > 0.0) {
 		float c = dot(L, D);
 		k *= clamp(1.0 - (c - inner_rim) / (outer_rim - inner_rim), 0.0, 1.0); // spot attenuation
+		k = pow(k, 2.0);
 	}
 	return k;
 }
@@ -113,12 +157,17 @@ vec3 GGX(vec3 V, vec3 N, float NdotV, vec3 L, vec3 albedo, float roughness, floa
 }
 
 //
-vec3 DistanceFog(vec3 pos, vec3 color) {
+vec3 DistanceFog(vec3 pos, vec3 color, vec2 uv) {
 	if (uFogState.y == 0.0)
 		return color;
 
 	float k = clamp((pos.z - uFogState.x) * uFogState.y, 0.0, 1.0);
-	return mix(color, uFogColor.xyz, k);
+	k *= uFog.x;
+	float fog_vignette = ComputeUnifiedVignette(uv, vec2(0.5, 0.44));
+	vec3 fog_color = uFogColor.xyz;
+	fog_color *= mix(vec3(0.92, 0.88, 0.98), vec3(1.0, 1.0, 1.0), fog_vignette);
+	fog_color *= mix(0.88, 1.0, fog_vignette);
+	return mix(color, fog_color, k);
 }
 
 // Entry point of the forward pipeline default uber shader (Phong and PBR)
@@ -131,6 +180,8 @@ void main() {
 	vec4 base_opacity = uBaseOpacityColor;
 #endif // USE_BASE_COLOR_OPACITY_MAP
 
+	base_opacity *= uColorMul;
+
 #if DEPTH_ONLY != 1
 #if USE_OCCLUSION_ROUGHNESS_METALNESS_MAP
 	vec4 occ_rough_metal = texture2D(uOcclusionRoughnessMetalnessMap, vTexCoord0);
@@ -138,12 +189,25 @@ void main() {
 	vec4 occ_rough_metal = uOcclusionRoughnessMetalnessColor;
 #endif // USE_OCCLUSION_ROUGHNESS_METALNESS_MAP
 
+// Optional secondary occlusion, not needing a second set of UV (UV1)
+#if USE_AMBIENT_MAP
+	float occ_2 = texture2D(uAmbientMap, vTexCoord0).x;
+	// Compress the range
+	occ_rough_metal.x *= occ_2;
+#endif
+
+	occ_rough_metal.x = map(occ_rough_metal.x, uAmbient.x, uAmbient.y, 0.0, 1.0);
+	occ_rough_metal.x = clamp(occ_rough_metal.x, 0.0, 1.0);
+	occ_rough_metal.x = pow(occ_rough_metal.x, uAmbient.z);
+
 	//
 #if USE_SELF_MAP
 	vec4 self = texture2D(uSelfMap, vTexCoord0);
 #else // USE_SELF_MAP
 	vec4 self = uSelfColor;
 #endif // USE_SELF_MAP
+
+	self = pow(self, uSelf.y) * uSelf.x; // Boost self illumination
 
 	//
 	vec3 view = mul(u_view, vec4(vWorldPos, 1.0)).xyz;
@@ -268,13 +332,16 @@ void main() {
 	color *= occ_rough_metal.x;
 	color += self.xyz;
 
-	color = DistanceFog(view, color);
+	vec2 screen_uv = gl_FragCoord.xy / uResolution.xy;
+	color = DistanceFog(view, color, screen_uv);
+	color = ApplyUnifiedVignette(color, screen_uv);
+	color = ConvergeDarkColor(color);
 #endif // DEPTH_ONLY != 1
 
 	float opacity = base_opacity.w;
 
 #if ENABLE_ALPHA_CUT
-	if (opacity < 0.8)
+	if (opacity < uAlphaCut.x)
 		discard;
 #endif // ENABLE_ALPHA_CUT
 

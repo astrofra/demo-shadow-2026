@@ -51,7 +51,7 @@ void main() {
 
 			vec2 hit_pixel;
 			vec3 hit_point;
-			float k = TraceScreenRay(ray_o - v_viewRay * 0.05, ray_d_spread, uMainProjection, z_min, 192, hit_pixel, hit_point);
+			float k = TraceScreenRay(ray_o - v_viewRay * 0.05, ray_d_spread, uMainProjection, z_min, 64, hit_pixel, hit_point);
 
 			if (k > 0.0) {
 				// use hit pixel velocity to compensate the fact that we are sampling the previous frame
@@ -62,9 +62,9 @@ void main() {
 
 				float log_depth = ComputeRayLogDepth(uMainProjection, hit_point);
 
-				if ((dot(attr0.xyz, ray_d_spread) < 0.0) && (hit_point.z <= log_depth)) { // ray facing the collision
+				if ((dot(attr0.xyz, ray_d_spread) < 0.0) /* && (hit_point.z <= log_depth) */) { // ray facing the collision
 					vec3 irradiance = texture2D(u_color, uv - vel * uv_ratio).xyz;
-					color += vec4(irradiance, 1.0);
+					color += vec4(irradiance * 4.0, 1.0);
 				} else {
 					color += vec4(0.0, 0.0, 0.0, 0.0); // backface hit
 				}

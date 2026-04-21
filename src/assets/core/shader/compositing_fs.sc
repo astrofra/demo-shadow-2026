@@ -3,8 +3,8 @@ $input v_texcoord0
 // HARFANG(R) Copyright (C) 2022 Emmanuel Julien, NWNC HARFANG. Released under GPL/LGPL/Commercial Licence, see licence.txt for details.
 #include <forward_pipeline.sh>
 
-SAMPLER2D(u_copyColor, 0);
-SAMPLER2D(u_copyDepth, 1);
+SAMPLER2D(u_color, 0);
+SAMPLER2D(u_depth, 1);
 
 /*
 	tone-mapping operators implementation taken from https://www.shadertoy.com/view/lslGzl
@@ -45,6 +45,10 @@ vec3 FilmicToneMapping(vec3 color) {
 	return color;
 }
 
+float map(float value, float min1, float max1, float min2, float max2) {
+  return min2 + (value - min1) * (max2 - min2) / (max1 - min1);
+}
+
 vec3 Uncharted2ToneMapping(vec3 color, float exposure) {
 	float A = 0.15;
 	float B = 0.50;
@@ -61,11 +65,11 @@ vec3 Uncharted2ToneMapping(vec3 color, float exposure) {
 }
 
 vec4 Sharpen(vec2 uv, float strength) {
-	vec4 up = texture2D(u_copyColor, uv + vec2(0, 1) / uResolution.xy);
-	vec4 left = texture2D(u_copyColor, uv + vec2(-1, 0) / uResolution.xy);
-	vec4 center = texture2D(u_copyColor, uv);
-	vec4 right = texture2D(u_copyColor, uv + vec2(1, 0) / uResolution.xy);
-	vec4 down = texture2D(u_copyColor, uv + vec2(0, -1) / uResolution.xy);
+	vec4 up = texture2D(u_color, uv + vec2(0, 1) / uResolution.xy);
+	vec4 left = texture2D(u_color, uv + vec2(-1, 0) / uResolution.xy);
+	vec4 center = texture2D(u_color, uv);
+	vec4 right = texture2D(u_color, uv + vec2(1, 0) / uResolution.xy);
+	vec4 down = texture2D(u_color, uv + vec2(0, -1) / uResolution.xy);
 
 	float exposure = uAAAParams[1].x;
 	up.xyz = SimpleReinhardToneMapping(up.xyz, exposure);
@@ -78,14 +82,72 @@ vec4 Sharpen(vec2 uv, float strength) {
 	return vec4(res.xyz, center.w);
 }
 
+vec3 ApplyTopPurpleFade(vec2 uv, vec3 color) {
+	vec3 purple = vec3((0.78/7.0)/2.0, (0.56/6.0)/2.0, (0.98/4.0)/2.0);
+	float fade_v = clamp(map(uv.y, 0.8, 1.0, 0.0, 1.0), 0.0, 1.0);
+	fade_v = pow(fade_v, 4.0);
+	return mix(color, purple, fade_v);
+}
+
+vec3 SampleCompositedColor(vec2 uv) {
+	vec2 safe_uv = clamp(uv, vec2(0.0, 0.0), vec2(1.0, 1.0));
+	float exposure = uAAAParams[1].x;
+	vec3 color = texture2D(u_color, safe_uv).xyz;
+	color = SimpleReinhardToneMapping(color, exposure);
+	return ApplyTopPurpleFade(safe_uv, color);
+}
+
+float ComputeLensEdgeMask(vec2 uv) {
+	// Unit circle in normalized UV space maps to an ellipse inscribed in the screen.
+	vec2 ellipse_pos = uv * 2.0 - vec2(1.0, 1.0);
+	float ellipse_radius = length(ellipse_pos);
+	float mask = smoothstep(0.72, 1.28, ellipse_radius);
+	return mask * mask;
+}
+
+vec3 ApplyLensEdgeDefect(vec2 uv, vec3 base_color, float lens_mask) {
+	vec2 screen_pos = (uv - vec2(0.5, 0.5)) * uResolution.xy;
+	vec2 radial_dir = screen_pos / max(length(screen_pos), 0.0001);
+	vec2 tangent_dir = vec2(-radial_dir.y, radial_dir.x);
+	vec2 radial_uv = radial_dir / uResolution.xy;
+	vec2 tangent_uv = tangent_dir / uResolution.xy;
+
+	float chroma_pixels = lens_mask * 4.5;
+	vec2 chroma_offset = radial_uv * chroma_pixels;
+	vec3 chroma_color;
+	chroma_color.r = SampleCompositedColor(uv + chroma_offset * 1.25).r;
+	chroma_color.g = SampleCompositedColor(uv - chroma_offset * 0.25).g;
+	chroma_color.b = SampleCompositedColor(uv - chroma_offset * 1.15).b;
+
+	float blur_pixels = lens_mask * 7.0;
+	vec2 radial_blur = radial_uv * blur_pixels;
+	vec2 tangent_blur = tangent_uv * blur_pixels * 0.75;
+	vec3 blur_color = SampleCompositedColor(uv) * 0.24;
+	blur_color += SampleCompositedColor(uv + radial_blur) * 0.16;
+	blur_color += SampleCompositedColor(uv - radial_blur) * 0.16;
+	blur_color += SampleCompositedColor(uv + tangent_blur) * 0.12;
+	blur_color += SampleCompositedColor(uv - tangent_blur) * 0.12;
+	blur_color += SampleCompositedColor(uv + radial_blur + tangent_blur) * 0.05;
+	blur_color += SampleCompositedColor(uv + radial_blur - tangent_blur) * 0.05;
+	blur_color += SampleCompositedColor(uv - radial_blur + tangent_blur) * 0.05;
+	blur_color += SampleCompositedColor(uv - radial_blur - tangent_blur) * 0.05;
+
+	vec3 lens_color = mix(chroma_color, blur_color, lens_mask * 0.72);
+	return mix(base_color, lens_color, lens_mask);
+}
+
 void main() {
 #if 1
 	vec4 in_sample = Sharpen(v_texcoord0, uAAAParams[2].y);
 
-	vec3 color = in_sample.xyz;
+	vec3 color = ApplyTopPurpleFade(v_texcoord0, in_sample.xyz);
+	float lens_mask = ComputeLensEdgeMask(v_texcoord0);
+	if (lens_mask > 0.001) {
+		color = ApplyLensEdgeDefect(v_texcoord0, color, lens_mask);
+	}
 	float alpha = in_sample.w;
 #else
-	vec4 in_sample = texture2D(u_copyColor, v_texcoord0);
+	vec4 in_sample = texture2D(u_color, v_texcoord0);
 
 	vec3 color = in_sample.xyz;
 	float alpha = in_sample.w;
@@ -102,5 +164,5 @@ void main() {
 	color = pow(color, vec3_splat(inv_gamma));
 
 	gl_FragColor = vec4(color, alpha);
-	gl_FragDepth = texture2D(u_copyDepth, v_texcoord0).r;
+	gl_FragDepth = texture2D(u_depth, v_texcoord0).r;
 }

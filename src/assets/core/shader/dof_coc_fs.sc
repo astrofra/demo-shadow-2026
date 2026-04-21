@@ -9,7 +9,7 @@ uniform vec4 u_params; // x: focus point, y: focus_length
 
 #define GOLDEN_ANGLE 2.39996323
 #define MAX_BLUR_SIZE 20.0
-#define RAD_SCALE 0.75 // Smaller = nicer blur, larger = faster
+#define RAD_SCALE 2.0 // Smaller = nicer blur, larger = faster
 
 float ComputeCoC(float depth) {
 	return clamp(abs(depth - u_params.x) / u_params.y, 0.0, 1.0) * MAX_BLUR_SIZE;

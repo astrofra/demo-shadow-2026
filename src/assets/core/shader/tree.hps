@@ -1,0 +1,12 @@
+{
+	"features": ["OptionalBaseColorOpacityMap", "OptionalOcclusionRoughnessMetalnessMap", "OptionalNormalMap", "OptionalSelfMap", "OptionalAlphaCut", "OptionalAmbientMap", "OptionalSkinning"],
+	"uniforms": [
+		{"name": "uColorMul", "type": "Color", "value": [1.0, 1.0, 1.0, 1.0]},
+		{"name": "uAmbient", "type": "Vec4", "value": [0.0, 1.0, 1.0, 0.0]},
+		{"name": "uFog", "type": "Vec4", "value": [1.0, 0.0, 0.0, 0.0]},
+		{"name": "uAlphaCut", "type": "Vec4", "value": [0.2, 0.0, 0.0, 0.0]},
+		{"name": "uSelf", "type": "Vec4", "value": [1.0, 1.0, 0.0, 0.0]},
+		{"name": "uTreeWind", "type": "Vec4", "value": [0.12, 3.5, 1.15, 0.18]}
+	]
+
+}
