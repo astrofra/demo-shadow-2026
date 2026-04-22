@@ -2,6 +2,12 @@ hg = require("harfang")
 require("config_gui")
 local automaton_controller_lib = require("automaton_controller")
 
+local robot_actions = require("robot_scenario")
+local DEBUG_MOVE_START_NODE = "path_0"
+local DEBUG_MOVE_TARGET_NODE = "path_1"
+local DEBUG_ROTATE_TARGET_NODE_A = "path_0"
+local DEBUG_ROTATE_TARGET_NODE_B = "path_1"
+
 local MAIN_LIGHT_NAME = "MainLight"
 local MAIN_LIGHT_SHADOW_NEAR = 25.0
 local MAIN_LIGHT_SHADOW_FAR = 55.0
@@ -280,6 +286,19 @@ local function draw_compositing_slider(settings, field)
 	return changed
 end
 
+local function start_robot_scenario(automaton_controller)
+	if automaton_controller == nil then
+		return
+	end
+
+	if type(robot_actions) ~= "table" then
+		error("robot_scenario.lua must return an action table")
+	end
+
+	automaton_controller:StopActionSequence()
+	automaton_controller:RunActionSequence(robot_actions)
+end
+
 local function draw_compositing_tuning_ui(settings, ui_state, automaton_controller)
 	local current_section = nil
 
@@ -352,25 +371,30 @@ local function draw_compositing_tuning_ui(settings, ui_state, automaton_controll
 			hg.ImGuiText(("Look blend: %.2f"):format(debug_state.look_blend))
 			hg.ImGuiText(("Action: %s"):format(debug_state.current_action_type))
 			hg.ImGuiText(("Action index: %d"):format(debug_state.action_index))
-			hg.ImGuiText("F1/F2 move path_A <-> path_B")
+			hg.ImGuiText(("F1/F2 move %s <-> %s"):format(DEBUG_MOVE_START_NODE, DEBUG_MOVE_TARGET_NODE))
 			hg.ImGuiText("F3/F4 left hand lock/unlock")
 			hg.ImGuiText("F5/F6 right hand lock/unlock")
-			hg.ImGuiText("F7/F8 rotate toward path_A/path_B")
+			hg.ImGuiText(("F7/F8 rotate toward %s/%s"):format(DEBUG_ROTATE_TARGET_NODE_A, DEBUG_ROTATE_TARGET_NODE_B))
+			hg.ImGuiText("F9 rerun robot scenario")
 
-			if hg.ImGuiButton("Move path_A -> path_B") then
-				automaton_controller:MoveFromNodeToNode("path_A", "path_B")
+			if hg.ImGuiButton(("Move %s -> %s"):format(DEBUG_MOVE_START_NODE, DEBUG_MOVE_TARGET_NODE)) then
+				automaton_controller:MoveFromNodeToNode(DEBUG_MOVE_START_NODE, DEBUG_MOVE_TARGET_NODE)
 			end
 			hg.ImGuiSameLine()
-			if hg.ImGuiButton("Move path_B -> path_A") then
-				automaton_controller:MoveFromNodeToNode("path_B", "path_A")
+			if hg.ImGuiButton(("Move %s -> %s"):format(DEBUG_MOVE_TARGET_NODE, DEBUG_MOVE_START_NODE)) then
+				automaton_controller:MoveFromNodeToNode(DEBUG_MOVE_TARGET_NODE, DEBUG_MOVE_START_NODE)
 			end
 
-			if hg.ImGuiButton("Rotate toward path_A") then
-				automaton_controller:RotateToNode("path_A")
+			if hg.ImGuiButton(("Rotate toward %s"):format(DEBUG_ROTATE_TARGET_NODE_A)) then
+				automaton_controller:RotateToNode(DEBUG_ROTATE_TARGET_NODE_A)
 			end
 			hg.ImGuiSameLine()
-			if hg.ImGuiButton("Rotate toward path_B") then
-				automaton_controller:RotateToNode("path_B")
+			if hg.ImGuiButton(("Rotate toward %s"):format(DEBUG_ROTATE_TARGET_NODE_B)) then
+				automaton_controller:RotateToNode(DEBUG_ROTATE_TARGET_NODE_B)
+			end
+
+			if hg.ImGuiButton("Run robot scenario") then
+				start_robot_scenario(automaton_controller)
 			end
 
 			if hg.ImGuiButton("Lock left hand on hand_target_A") then
@@ -400,11 +424,11 @@ local function handle_automaton_debug_controls(keyboard, automaton_controller)
 	end
 
 	if keyboard:Pressed(hg.K_F1) then
-		automaton_controller:MoveFromNodeToNode("path_A", "path_B")
+		automaton_controller:MoveFromNodeToNode(DEBUG_MOVE_START_NODE, DEBUG_MOVE_TARGET_NODE)
 	end
 
 	if keyboard:Pressed(hg.K_F2) then
-		automaton_controller:MoveFromNodeToNode("path_B", "path_A")
+		automaton_controller:MoveFromNodeToNode(DEBUG_MOVE_TARGET_NODE, DEBUG_MOVE_START_NODE)
 	end
 
 	if keyboard:Pressed(hg.K_F3) then
@@ -424,11 +448,15 @@ local function handle_automaton_debug_controls(keyboard, automaton_controller)
 	end
 
 	if keyboard:Pressed(hg.K_F7) then
-		automaton_controller:RotateToNode("path_A")
+		automaton_controller:RotateToNode(DEBUG_ROTATE_TARGET_NODE_A)
 	end
 
 	if keyboard:Pressed(hg.K_F8) then
-		automaton_controller:RotateToNode("path_B")
+		automaton_controller:RotateToNode(DEBUG_ROTATE_TARGET_NODE_B)
+	end
+
+	if keyboard:Pressed(hg.K_F9) then
+		start_robot_scenario(automaton_controller)
 	end
 end
 
@@ -448,7 +476,7 @@ local function run_demo_3d(win, res_x, res_y, config, compositing_settings, load
 	local ui_state = {dirty = false, status_message = load_status_message or ""}
 	local frame = 0
 
-	automaton_controller:MoveFromNodeToNode("path_A", "path_B")
+	start_robot_scenario(automaton_controller)
 
 	hg.ImGuiInit(10, imgui_prg, imgui_img_prg)
 
