@@ -40,6 +40,45 @@ local LEG_SIDES = {
 	}
 }
 
+-- Offsets captured from walking-arms-along-the-body.scn to keep the
+-- procedural pose aligned with the imported rig axes.
+local FREE_ARM_NEUTRAL_OFFSETS = {
+	left = {
+		shoulder = hg.Vec3(0.0, 0.0, 0.0),
+		arm = hg.Vec3(hg.Deg(-72.958258), hg.Deg(-10.400532), hg.Deg(-6.530455)),
+		forearm = hg.Vec3(0.0, 0.0, 0.0),
+		hand = hg.Vec3(0.0, 0.0, 0.0)
+	},
+	right = {
+		shoulder = hg.Vec3(0.0, 0.0, 0.0),
+		arm = hg.Vec3(hg.Deg(-75.792245), hg.Deg(1.559689), hg.Deg(9.952714)),
+		forearm = hg.Vec3(0.0, 0.0, 0.0),
+		hand = hg.Vec3(0.0, 0.0, 0.0)
+	}
+}
+
+local ARM_IK_YAW_OFFSETS = {
+	left = {
+		upper = -hg.Deg(10.515554),
+		lower = -hg.Deg(10.360635)
+	},
+	right = {
+		upper = hg.Deg(11.743473),
+		lower = hg.Deg(11.567876)
+	}
+}
+
+local LEG_IK_YAW_OFFSETS = {
+	left = {
+		upper = -hg.Deg(90.292977),
+		lower = -hg.Deg(91.566486)
+	},
+	right = {
+		upper = -hg.Deg(89.092503),
+		lower = -hg.Deg(88.215035)
+	}
+}
+
 local CONTROLLED_NODE_NAMES = {
 	"mixamorig:Hips",
 	"mixamorig:LeftShoulder",
@@ -183,7 +222,11 @@ local function make_basis_from_y(y_axis, z_hint)
 	return hg.Normalize(hg.Mat3(x, y, z))
 end
 
-local function solve_two_bone_knee(root_pos, target_pos, pole_hint, upper_len, lower_len)
+local function rotate_basis_y(basis, yaw)
+	return hg.Normalize(basis * hg.RotationMat3(hg.Vec3(0.0, yaw, 0.0)))
+end
+
+local function solve_two_bone_joint(root_pos, target_pos, pole_hint, upper_len, lower_len)
 	local to_target = target_pos - root_pos
 	local min_reach = math.abs(upper_len - lower_len) + 0.0001
 	local max_reach = math.max(upper_len + lower_len - 0.0001, min_reach)
@@ -589,7 +632,7 @@ function Controller:_apply_leg_pose(side_name)
 	local upper_len = leg.upper * self.uniform_scale
 	local lower_len = leg.lower * self.uniform_scale
 	local pole_hint = self.current_forward * self.params.knee_forward_bias + self.current_right * (side.sign * self.params.knee_outward_bias)
-	local knee_world = solve_two_bone_knee(hip_world, foot_target, pole_hint, upper_len, lower_len)
+	local knee_world = solve_two_bone_joint(hip_world, foot_target, pole_hint, upper_len, lower_len)
 	local plane_normal = hg.Cross(knee_world - hip_world, foot_target - knee_world)
 
 	if hg.Len(plane_normal) <= 0.00001 then
@@ -598,19 +641,10 @@ function Controller:_apply_leg_pose(side_name)
 
 	plane_normal = safe_normalize(plane_normal, self.current_right * side.sign)
 
-	local upper_basis = make_basis_from_y(knee_world - hip_world, plane_normal)
-	local lower_basis = make_basis_from_y(foot_target - knee_world, plane_normal)
+	local leg_axis_offsets = LEG_IK_YAW_OFFSETS[side_name]
+	local upper_basis = rotate_basis_y(make_basis_from_y(knee_world - hip_world, plane_normal), leg_axis_offsets.upper)
+	local lower_basis = rotate_basis_y(make_basis_from_y(foot_target - knee_world, plane_normal), leg_axis_offsets.lower)
 	local foot_pitch = 0.0
-	local foot_yaw = self.params.foot_yaw_offset
-
-	if side_name == "left" then
-		upper_basis = hg.Normalize(upper_basis * hg.RotationMat3(hg.Vec3(0.0, self.params.left_thigh_yaw_offset, 0.0)))
-		foot_yaw = foot_yaw + self.params.left_foot_yaw_compensation
-	end
-
-	if side_name == "left" then
-		lower_basis = hg.Normalize(lower_basis * hg.RotationMat3(hg.Vec3(0.0, self.params.left_calf_yaw_offset, 0.0)))
-	end
 
 	if self.step_active and self.swing_side == side_name then
 		foot_pitch = self.params.swing_foot_pitch * math.sin(compute_swing_alpha(self.step_progress) * math.pi)
@@ -618,7 +652,7 @@ function Controller:_apply_leg_pose(side_name)
 
 	upper_node:GetTransform():SetWorld(hg.TransformationMat4(hip_world, upper_basis, self:_get_world_node_scale(upper_rest.scale)))
 	lower_node:GetTransform():SetWorld(hg.TransformationMat4(knee_world, lower_basis, self:_get_world_node_scale(lower_rest.scale)))
-	foot_node:GetTransform():SetPosRot(foot_rest.pos, foot_rest.rot + hg.Vec3(foot_pitch, foot_yaw, 0.0))
+	foot_node:GetTransform():SetPosRot(foot_rest.pos, foot_rest.rot + hg.Vec3(foot_pitch, 0.0, 0.0))
 end
 
 function Controller:_apply_walk_pose()
@@ -629,6 +663,7 @@ end
 
 function Controller:_compute_free_arm_pose(side_name)
 	local side = HAND_SIDES[side_name]
+	local neutral = FREE_ARM_NEUTRAL_OFFSETS[side_name]
 	local locomotion_weight = self.motion_weight
 	local phase = self.walk_phase + (side_name == "left" and math.pi or 0.0)
 	local swing = math.sin(phase) * locomotion_weight
@@ -638,63 +673,55 @@ function Controller:_compute_free_arm_pose(side_name)
 	local hand_rest = self.rest_pose[side.hand]
 
 	return {
-		shoulder = shoulder_rest.rot + hg.Vec3(
+		shoulder = shoulder_rest.rot + neutral.shoulder + hg.Vec3(
+			self.params.free_shoulder_pitch_swing * swing,
 			0.0,
-			0.0,
-			-side.sign * self.params.free_shoulder_drop + side.sign * self.params.free_shoulder_swing * swing
+			side.sign * self.params.free_shoulder_roll_swing * swing
 		),
-		arm = arm_rest.rot + hg.Vec3(
-			self.params.free_arm_pitch - self.params.free_arm_swing * swing,
-			0.0,
-			-side.sign * self.params.free_arm_drop
+		arm = arm_rest.rot + neutral.arm + hg.Vec3(
+			-self.params.free_arm_swing * swing,
+			side.sign * self.params.free_arm_yaw_swing * swing,
+			side.sign * self.params.free_arm_roll_swing * swing
 		),
-		forearm = forearm_rest.rot + hg.Vec3(
-			self.params.free_forearm_bend + math.max(0.0, -swing) * self.params.free_forearm_swing,
+		forearm = forearm_rest.rot + neutral.forearm + hg.Vec3(
+			self.params.free_forearm_bend * locomotion_weight + math.max(0.0, -swing) * self.params.free_forearm_swing,
 			0.0,
 			0.0
 		),
-		hand = hand_rest.rot + hg.Vec3(self.params.free_hand_local_pitch, 0.0, 0.0)
+		hand = hand_rest.rot + neutral.hand + hg.Vec3(self.params.free_hand_local_pitch * locomotion_weight, 0.0, 0.0)
 	}
 end
 
-function Controller:_compute_arm_pose_to_world_target(side_name, target_hand_pos, target_hand_rot, options)
+function Controller:_compute_arm_pose_to_world_target(side_name, target_hand_pos, target_hand_rot)
 	local side = HAND_SIDES[side_name]
-	local shoulder_node = self.view_nodes[side.shoulder]
-	local hand_node = self.view_nodes[side.hand]
-	local shoulder_world = shoulder_node:GetTransform():GetWorld()
-	local target_local = hg.InverseFast(shoulder_world) * target_hand_pos
-	local shoulder_rest = self.rest_pose[side.shoulder]
+	local arm_node = self.view_nodes[side.arm]
 	local arm_rest = self.rest_pose[side.arm]
 	local forearm_rest = self.rest_pose[side.forearm]
-	local hand_rest_world = hand_node:GetTransform():GetWorld()
-	local rel = target_local - arm_rest.pos
-	local distance = math.max(hg.Len(rel), 0.0001)
-	local reach_ratio = clamp(distance / (self.arm_lengths[side_name].upper + self.arm_lengths[side_name].lower), 0.0, 1.0)
-	local rel_planar = math.max(math.sqrt(rel.x * rel.x + rel.y * rel.y), 0.0001)
-	local aim_x = clamp(atan2(rel.z, rel_planar), -self.params.arm_lock_pitch_limit, self.params.arm_lock_pitch_limit)
-	local aim_z = clamp(
-		-atan2(rel.x * side.sign, math.max(math.abs(rel.y), 0.0001)) * side.sign,
-		-self.params.arm_lock_roll_limit,
-		self.params.arm_lock_roll_limit
-	)
-	local elbow = self.params.arm_lock_elbow_bend * (1.0 - reach_ratio)
-	local current_hand_pos = hg.GetT(hand_rest_world)
-	local current_hand_rot = hg.GetRotation(hand_rest_world)
+	local hand_rest = self.rest_pose[side.hand]
+	local arm_root_world = get_world_position(arm_node)
+	local hand_target = copy_vec3(target_hand_pos)
+	local arm = self.arm_lengths[side_name]
+	local upper_len = arm.upper * self.uniform_scale
+	local lower_len = arm.lower * self.uniform_scale
+	local pole_hint = self.current_right * (side.sign * self.params.arm_elbow_outward_bias) + self.current_forward * self.params.arm_elbow_forward_bias
+	local elbow_world = solve_two_bone_joint(arm_root_world, hand_target, pole_hint, upper_len, lower_len)
+	local plane_normal = hg.Cross(elbow_world - arm_root_world, hand_target - elbow_world)
+
+	if hg.Len(plane_normal) <= 0.00001 then
+		plane_normal = pole_hint
+	end
+
+	plane_normal = safe_normalize(plane_normal * side.sign, self.current_right * side.sign)
+
+	local arm_axis_offsets = ARM_IK_YAW_OFFSETS[side_name]
+	local upper_basis = rotate_basis_y(make_basis_from_y(elbow_world - arm_root_world, plane_normal), arm_axis_offsets.upper)
+	local lower_basis = rotate_basis_y(make_basis_from_y(hand_target - elbow_world, plane_normal), arm_axis_offsets.lower)
 
 	return {
-		shoulder = shoulder_rest.rot + hg.Vec3(aim_x * 0.18, 0.0, aim_z * 0.55),
-		arm = arm_rest.rot + hg.Vec3(aim_x - elbow * 0.32, 0.0, aim_z * 0.88),
-		forearm = forearm_rest.rot + hg.Vec3(elbow, 0.0, 0.0),
-		hand_world_pos = target_hand_pos,
-		hand_world_rot = target_hand_rot,
-		current_hand_world_pos = current_hand_pos,
-		current_hand_world_rot = current_hand_rot
+		arm_world = hg.TransformationMat4(arm_root_world, upper_basis, self:_get_world_node_scale(arm_rest.scale)),
+		forearm_world = hg.TransformationMat4(elbow_world, lower_basis, self:_get_world_node_scale(forearm_rest.scale)),
+		hand_world = hg.TransformationMat4(hand_target, target_hand_rot, self:_get_world_node_scale(hand_rest.scale))
 	}
-end
-
-function Controller:_compute_locked_arm_pose(side_name, target_node)
-	local target_world = target_node:GetTransform():GetWorld()
-	return self:_compute_arm_pose_to_world_target(side_name, hg.GetT(target_world), hg.GetRotation(target_world))
 end
 
 function Controller:_apply_arm_pose(side_name)
@@ -709,14 +736,9 @@ function Controller:_apply_arm_pose(side_name)
 	local arm_rest = self.rest_pose[side.arm]
 	local forearm_rest = self.rest_pose[side.forearm]
 	local hand_rest = self.rest_pose[side.hand]
-	local free_arm_rot = free_pose.arm
-
-	if side_name == "left" then
-		-- free_arm_rot = free_arm_rot + hg.Vec3(self.params.left_arm_pitch_offset, 0.0, 0.0)
-	end
 
 	shoulder_node:GetTransform():SetPosRot(shoulder_rest.pos, free_pose.shoulder)
-	arm_node:GetTransform():SetPosRot(arm_rest.pos, free_arm_rot)
+	arm_node:GetTransform():SetPosRot(arm_rest.pos, free_pose.arm)
 	forearm_node:GetTransform():SetPosRot(forearm_rest.pos, free_pose.forearm)
 	hand_node:GetTransform():SetPosRot(hand_rest.pos, free_pose.hand)
 
@@ -724,23 +746,16 @@ function Controller:_apply_arm_pose(side_name)
 		return
 	end
 
-	local locked_pose = self:_compute_locked_arm_pose(side_name, lock_state.target_node)
 	local free_hand_world = hand_node:GetTransform():GetWorld()
 	local blend = lock_state.blend
-	local shoulder_rot = lerp_vec3(free_pose.shoulder, locked_pose.shoulder, blend)
-	local arm_rot = lerp_vec3(free_pose.arm, locked_pose.arm, blend)
-	local forearm_rot = lerp_vec3(free_pose.forearm, locked_pose.forearm, blend)
-	local hand_pos = lerp_vec3(hg.GetT(free_hand_world), locked_pose.hand_world_pos, blend)
-	local hand_rot = lerp_vec3(hg.GetRotation(free_hand_world), locked_pose.hand_world_rot, blend)
+	local target_world = lock_state.target_node:GetTransform():GetWorld()
+	local blended_hand_pos = lerp_vec3(hg.GetT(free_hand_world), hg.GetT(target_world), blend)
+	local blended_hand_rot = lerp_vec3(hg.GetRotation(free_hand_world), hg.GetRotation(target_world), blend)
+	local locked_pose = self:_compute_arm_pose_to_world_target(side_name, blended_hand_pos, blended_hand_rot)
 
-	if side_name == "left" then
-		-- arm_rot = arm_rot + hg.Vec3(self.params.left_arm_pitch_offset, 0.0, 0.0)
-	end
-
-	shoulder_node:GetTransform():SetPosRot(shoulder_rest.pos, shoulder_rot)
-	arm_node:GetTransform():SetPosRot(arm_rest.pos, arm_rot)
-	forearm_node:GetTransform():SetPosRot(forearm_rest.pos, forearm_rot)
-	hand_node:GetTransform():SetWorld(hg.TransformationMat4(hand_pos, hand_rot, self:_get_world_node_scale(hand_rest.scale)))
+	arm_node:GetTransform():SetWorld(locked_pose.arm_world)
+	forearm_node:GetTransform():SetWorld(locked_pose.forearm_world)
+	hand_node:GetTransform():SetWorld(locked_pose.hand_world)
 end
 
 function Controller:Update(dt)
@@ -841,23 +856,17 @@ local function create_controller(scene, instance_node_name)
 			hips_bob = 0.012,
 			hips_sway = 0.016,
 			swing_foot_pitch = hg.Deg(8.0),
-			left_thigh_yaw_offset = -hg.Deg(90.0),
-			left_calf_yaw_offset = -hg.Deg(90.0),
-			foot_yaw_offset = -hg.Deg(90.0),
-			left_foot_yaw_compensation = hg.Deg(90.0),
-			free_shoulder_drop = hg.Deg(16.0),
-			free_shoulder_swing = hg.Deg(5.0),
-			free_arm_drop = hg.Deg(84.0),
-			free_arm_pitch = hg.Deg(-10.0),
-			free_arm_swing = hg.Deg(12.0),
-			free_forearm_bend = hg.Deg(10.0),
-			free_forearm_swing = hg.Deg(8.0),
-			free_hand_local_pitch = hg.Deg(-6.0),
-			left_arm_pitch_offset = -hg.Deg(90.0),
+			free_shoulder_pitch_swing = hg.Deg(1.5),
+			free_shoulder_roll_swing = hg.Deg(2.5),
+			free_arm_swing = hg.Deg(14.0),
+			free_arm_yaw_swing = hg.Deg(2.0),
+			free_arm_roll_swing = hg.Deg(1.5),
+			free_forearm_bend = 0.0,
+			free_forearm_swing = hg.Deg(4.0),
+			free_hand_local_pitch = 0.0,
 			hand_lock_blend_speed = 6.0,
-			arm_lock_elbow_bend = hg.Deg(72.0),
-			arm_lock_pitch_limit = hg.Deg(70.0),
-			arm_lock_roll_limit = hg.Deg(70.0)
+			arm_elbow_forward_bias = 0.35,
+			arm_elbow_outward_bias = 0.85
 		},
 		hand_locks = {
 			left = {active = false, blend = 0.0, target_name = nil, target_node = nil},
