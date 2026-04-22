@@ -40,6 +40,17 @@ local LEG_SIDES = {
 	}
 }
 
+local LOOK_NODES = {
+	neck = {
+		node = "mixamorig:Neck",
+		weight = 0.4
+	},
+	head = {
+		node = "mixamorig:Head",
+		weight = 0.6
+	}
+}
+
 -- Offsets captured from walking-arms-along-the-body.scn to keep the
 -- procedural pose aligned with the imported rig axes.
 local FREE_ARM_NEUTRAL_OFFSETS = {
@@ -99,6 +110,8 @@ local LEG_IK_YAW_OFFSETS = {
 
 local CONTROLLED_NODE_NAMES = {
 	"mixamorig:Hips",
+	"mixamorig:Neck",
+	"mixamorig:Head",
 	"mixamorig:LeftShoulder",
 	"mixamorig:LeftArm",
 	"mixamorig:LeftForeArm",
@@ -152,6 +165,30 @@ local function move_toward(value, target, max_delta)
 	return math.max(value - max_delta, target)
 end
 
+local function normalize_action_type(action_type)
+	if type(action_type) ~= "string" then
+		return ""
+	end
+
+	local normalized = string.lower(action_type)
+	normalized = normalized:gsub("%-", "_")
+	normalized = normalized:gsub("%s+", "_")
+	return normalized
+end
+
+local function normalize_side(side_name)
+	if type(side_name) ~= "string" then
+		return nil
+	end
+
+	local normalized = string.lower(side_name)
+	if normalized == "left" or normalized == "right" then
+		return normalized
+	end
+
+	return nil
+end
+
 local function shortest_angle_rad(current, target)
 	local delta = math.fmod(target - current + math.pi, math.pi * 2.0)
 	if delta < 0.0 then
@@ -190,6 +227,32 @@ local function get_world_rotation(node)
 	return hg.GetRotation(node:GetTransform():GetWorld())
 end
 
+local function capture_world_matrix(node)
+	local world = node:GetTransform():GetWorld()
+	return hg.TransformationMat4(hg.GetT(world), hg.GetRotation(world), hg.GetS(world))
+end
+
+local function transform_point_to_local(world_matrix, point)
+	local origin = hg.GetT(world_matrix)
+	local offset = point - origin
+	local x_axis = hg.GetX(world_matrix)
+	local y_axis = hg.GetY(world_matrix)
+	local z_axis = hg.GetZ(world_matrix)
+	local x_scale = math.max(hg.Len(x_axis), 0.0001)
+	local y_scale = math.max(hg.Len(y_axis), 0.0001)
+	local z_scale = math.max(hg.Len(z_axis), 0.0001)
+
+	x_axis = x_axis * (1.0 / x_scale)
+	y_axis = y_axis * (1.0 / y_scale)
+	z_axis = z_axis * (1.0 / z_scale)
+
+	return hg.Vec3(
+		hg.Dot(offset, x_axis) / x_scale,
+		hg.Dot(offset, y_axis) / y_scale,
+		hg.Dot(offset, z_axis) / z_scale
+	)
+end
+
 local function ensure_valid_node(node, name)
 	if not node:IsValid() then
 		error(('AutomatonController: node "%s" is missing or invalid'):format(name))
@@ -220,6 +283,16 @@ end
 
 local function scale_vec3(value, scalar)
 	return hg.Vec3(value.x * scalar, value.y * scalar, value.z * scalar)
+end
+
+local function rotate_xz(value, yaw)
+	local cos_yaw = math.cos(yaw)
+	local sin_yaw = math.sin(yaw)
+	return hg.Vec3(
+		value.x * cos_yaw - value.z * sin_yaw,
+		value.y,
+		value.x * sin_yaw + value.z * cos_yaw
+	)
 end
 
 local function resolve_chain_length(rest_pose)
@@ -304,36 +377,39 @@ function Controller:_get_view_node(name)
 	return ensure_valid_node(node, name)
 end
 
-function Controller:_get_host_node(name)
-	local cached = self.host_nodes[name]
-	if cached ~= nil then
+function Controller:_resolve_node_ref(node_ref)
+	if type(node_ref) ~= "string" or node_ref == "" then
+		error("AutomatonController: node reference must be a non-empty string")
+	end
+
+	local cached = self.node_refs[node_ref]
+	if cached ~= nil and cached:IsValid() then
 		return cached
 	end
 
-	local node = ensure_valid_node(self.scene:GetNode(name), name)
-	self.host_nodes[name] = node
-	return node
+	local node = self.scene:GetNodeEx(node_ref)
+	if node:IsValid() then
+		self.node_refs[node_ref] = node
+		return node
+	end
+
+	node = self.scene_view:GetNode(self.scene, node_ref)
+	if node:IsValid() then
+		self.node_refs[node_ref] = node
+		return node
+	end
+
+	node = self.scene:GetNode(node_ref)
+	if node:IsValid() then
+		self.node_refs[node_ref] = node
+		return node
+	end
+
+	error(('AutomatonController: node reference "%s" not found'):format(node_ref))
 end
 
 function Controller:_resolve_hand_target(name)
-	local cached = self.hand_targets[name]
-	if cached ~= nil then
-		return cached
-	end
-
-	local node = self.scene_view:GetNode(self.scene, name)
-	if node:IsValid() then
-		self.hand_targets[name] = node
-		return node
-	end
-
-	node = self.scene:GetNode(name)
-	if node:IsValid() then
-		self.hand_targets[name] = node
-		return node
-	end
-
-	error(('AutomatonController: hand target "%s" not found in instance view or host scene'):format(name))
+	return self:_resolve_node_ref(name)
 end
 
 function Controller:_restore_controlled_pose()
@@ -348,12 +424,33 @@ function Controller:_update_hand_lock_blends(dt)
 	for _, side in ipairs({"left", "right"}) do
 		local lock_state = self.hand_locks[side]
 		local blend_target = lock_state.active and 1.0 or 0.0
-		lock_state.blend = move_toward(lock_state.blend, blend_target, dt * self.params.hand_lock_blend_speed)
+		lock_state.blend = move_toward(lock_state.blend, blend_target, dt / self.params.hand_lock_blend_duration)
+
+		if not lock_state.active and lock_state.blend <= 0.0 then
+			lock_state.target_name = nil
+			lock_state.target_node = nil
+		end
 	end
 end
 
+function Controller:_clear_move_target()
+	self.target_world = nil
+	self.arrived = false
+	self.target_node_name = nil
+end
+
+function Controller:_clear_rotate_target()
+	self.rotate_target_yaw = nil
+	self.target_node_name = nil
+	self.turn_step.active = false
+	self.turn_step.delta_yaw = 0.0
+	self.turn_step.applied_yaw = 0.0
+end
+
 function Controller:_set_move_target(target_name)
-	local target_node = self:_get_host_node(target_name)
+	self:_clear_rotate_target()
+
+	local target_node = self:_resolve_node_ref(target_name)
 	local target_position = get_world_position(target_node)
 
 	self.target_node_name = target_name
@@ -361,12 +458,37 @@ function Controller:_set_move_target(target_name)
 	self.arrived = false
 end
 
+function Controller:_compute_yaw_to_node(target_name, origin_position)
+	local target_node = self:_resolve_node_ref(target_name)
+	local target_position = get_world_position(target_node)
+	local origin = origin_position or self.instance_node:GetTransform():GetPos()
+	local to_target = flatten_xz(target_position - origin)
+
+	if hg.Len(to_target) <= 0.0001 then
+		return self.instance_node:GetTransform():GetRot().y
+	end
+
+	local desired_direction = safe_normalize(to_target, self.current_forward)
+	return atan2(desired_direction.x, -desired_direction.z)
+end
+
+function Controller:_set_rotate_target(target_name)
+	self:_clear_move_target()
+	self:_clear_rotate_target()
+
+	self.target_node_name = target_name
+	self.rotate_target_yaw = self:_compute_yaw_to_node(target_name)
+	self.rotate_arrived = false
+	self.arrived = false
+	self.step_pause_timer = 0.0
+end
+
 function Controller:MoveToNode(target_name)
 	self:_set_move_target(target_name)
 end
 
 function Controller:MoveFromNodeToNode(start_name, target_name)
-	local start_node = self:_get_host_node(start_name)
+	local start_node = self:_resolve_node_ref(start_name)
 	local start_position = get_world_position(start_node)
 	local instance_transform = self.instance_node:GetTransform()
 	local instance_rotation = instance_transform:GetRot()
@@ -374,6 +496,21 @@ function Controller:MoveFromNodeToNode(start_name, target_name)
 	instance_transform:SetPosRot(hg.Vec3(start_position.x, self.ground_y, start_position.z), instance_rotation)
 	self:_reset_gait_state()
 	self:_set_move_target(target_name)
+end
+
+function Controller:RotateToNode(target_name)
+	self:_set_rotate_target(target_name)
+end
+
+function Controller:RotateFromNodeToNode(start_name, target_name)
+	local start_node = self:_resolve_node_ref(start_name)
+	local start_position = get_world_position(start_node)
+	local instance_transform = self.instance_node:GetTransform()
+	local instance_rotation = instance_transform:GetRot()
+
+	instance_transform:SetPosRot(hg.Vec3(start_position.x, self.ground_y, start_position.z), instance_rotation)
+	self:_reset_gait_state()
+	self:_set_rotate_target(target_name)
 end
 
 function Controller:PlaceLeftHandOnNode(target_name)
@@ -392,6 +529,60 @@ function Controller:UnlockRightHand()
 	self:_clear_hand_lock("right")
 end
 
+function Controller:GrabNodeWithLeftHand(node_ref)
+	self:_grab_node_with_hand("left", node_ref)
+end
+
+function Controller:GrabNodeWithRightHand(node_ref)
+	self:_grab_node_with_hand("right", node_ref)
+end
+
+function Controller:ReleaseLeftHandObject()
+	self:_release_hand_object("left")
+end
+
+function Controller:ReleaseRightHandObject()
+	self:_release_hand_object("right")
+end
+
+function Controller:LookAtNode(node_ref)
+	self:_set_look_at_target(node_ref)
+end
+
+function Controller:ClearLookAt()
+	self:_clear_look_at_target()
+end
+
+function Controller:RunActionSequence(actions)
+	if type(actions) ~= "table" then
+		error("AutomatonController: RunActionSequence expects a Lua table")
+	end
+
+	self.action_runner.actions = actions
+	self.action_runner.running = true
+	self.action_runner.next_index = 1
+	self.action_runner.current_action = nil
+	self.action_runner.current_action_type = nil
+	self.action_runner.current_action_index = 0
+end
+
+function Controller:StopActionSequence()
+	self.action_runner.running = false
+	self.action_runner.actions = nil
+	self.action_runner.next_index = 1
+	self.action_runner.current_action = nil
+	self.action_runner.current_action_type = nil
+	self.action_runner.current_action_index = 0
+end
+
+function Controller:IsActionSequenceRunning()
+	return self.action_runner.running
+end
+
+function Controller:IsRotationDone()
+	return self.rotate_target_yaw == nil
+end
+
 function Controller:_set_hand_lock(side, target_name)
 	local lock_state = self.hand_locks[side]
 	lock_state.target_name = target_name
@@ -402,8 +593,312 @@ end
 function Controller:_clear_hand_lock(side)
 	local lock_state = self.hand_locks[side]
 	lock_state.active = false
-	lock_state.target_name = nil
-	lock_state.target_node = nil
+end
+
+function Controller:_set_look_at_target(target_name)
+	local look_state = self.look_at_state
+	look_state.target_name = target_name
+	look_state.target_node = self:_resolve_node_ref(target_name)
+	look_state.active = true
+end
+
+function Controller:_clear_look_at_target()
+	self.look_at_state.active = false
+end
+
+function Controller:_update_look_at_blend(dt)
+	local look_state = self.look_at_state
+	local blend_target = look_state.active and 1.0 or 0.0
+
+	look_state.blend = move_toward(look_state.blend, blend_target, dt / self.params.look_at_blend_duration)
+
+	if not look_state.active and look_state.blend <= 0.0 then
+		look_state.target_name = nil
+		look_state.target_node = nil
+		look_state.yaw = 0.0
+		look_state.pitch = 0.0
+	end
+end
+
+function Controller:_ensure_hand_attach_proxy(side_name)
+	local proxy_node = self.hand_attach_proxies[side_name]
+	if proxy_node ~= nil and proxy_node:IsValid() then
+		return proxy_node
+	end
+
+	proxy_node = self.scene:CreateNode(("%s_%s_hand_proxy"):format(self.instance_node_name, side_name))
+	proxy_node:SetTransform(self.scene:CreateTransform(hg.Vec3(0.0, 0.0, 0.0), hg.Vec3(0.0, 0.0, 0.0), hg.Vec3(1.0, 1.0, 1.0)))
+	self.hand_attach_proxies[side_name] = proxy_node
+	return proxy_node
+end
+
+function Controller:_update_hand_attach_proxies()
+	for _, side_name in ipairs({"left", "right"}) do
+		local proxy_node = self.hand_attach_proxies[side_name]
+		if proxy_node ~= nil and proxy_node:IsValid() then
+			local hand_world = self.view_nodes[HAND_SIDES[side_name].hand]:GetTransform():GetWorld()
+			proxy_node:GetTransform():SetWorld(hand_world)
+		end
+	end
+end
+
+function Controller:_clear_held_object_state(side_name)
+	local held = self.held_objects[side_name]
+	held.node = nil
+	held.node_ref = nil
+	held.original_parent = nil
+	held.attached_parent = nil
+	held.using_proxy = false
+end
+
+function Controller:_attach_node_to_hand(side_name, node)
+	local hand_node = self.view_nodes[HAND_SIDES[side_name].hand]
+	local transform = node:GetTransform()
+	local zero = hg.Vec3(0.0, 0.0, 0.0)
+	local ok = pcall(function()
+		transform:SetParent(hand_node)
+		transform:SetPosRot(zero, zero)
+	end)
+
+	if ok then
+		local parent = transform:GetParent()
+		if parent:IsValid() and parent:GetUid() == hand_node:GetUid() then
+			return hand_node, false
+		end
+	end
+
+	local proxy_node = self:_ensure_hand_attach_proxy(side_name)
+	proxy_node:GetTransform():SetWorld(hand_node:GetTransform():GetWorld())
+	transform:SetParent(proxy_node)
+	transform:SetPosRot(zero, zero)
+	return proxy_node, true
+end
+
+function Controller:_grab_node_with_hand(side_name, node_ref)
+	local normalized_side = normalize_side(side_name)
+	if normalized_side == nil then
+		error(('AutomatonController: invalid hand side "%s"'):format(tostring(side_name)))
+	end
+
+	local node = self:_resolve_node_ref(node_ref)
+	local transform = node:GetTransform()
+	if not transform:IsValid() then
+		error(('AutomatonController: node "%s" has no valid Transform component'):format(node_ref))
+	end
+
+	local other_side = normalized_side == "left" and "right" or "left"
+	local held_other = self.held_objects[other_side]
+	if held_other.node ~= nil and held_other.node:IsValid() and held_other.node:GetUid() == node:GetUid() then
+		self:_release_hand_object(other_side)
+	end
+
+	local held = self.held_objects[normalized_side]
+	if held.node ~= nil and held.node:IsValid() and held.node:GetUid() ~= node:GetUid() then
+		self:_release_hand_object(normalized_side)
+	elseif held.node ~= nil and held.node:IsValid() and held.node:GetUid() == node:GetUid() then
+		self:_release_hand_object(normalized_side)
+	end
+
+	held.original_parent = transform:GetParent()
+	held.node = node
+	held.node_ref = node_ref
+	held.attached_parent, held.using_proxy = self:_attach_node_to_hand(normalized_side, node)
+end
+
+function Controller:_release_hand_object(side_name)
+	local normalized_side = normalize_side(side_name)
+	if normalized_side == nil then
+		error(('AutomatonController: invalid hand side "%s"'):format(tostring(side_name)))
+	end
+
+	local held = self.held_objects[normalized_side]
+	if held.node == nil or not held.node:IsValid() then
+		self:_clear_held_object_state(normalized_side)
+		return
+	end
+
+	local transform = held.node:GetTransform()
+	local world = capture_world_matrix(held.node)
+
+	if held.original_parent ~= nil and held.original_parent:IsValid() then
+		transform:SetParent(held.original_parent)
+	else
+		transform:ClearParent()
+	end
+
+	transform:SetWorld(world)
+	self:_clear_held_object_state(normalized_side)
+end
+
+function Controller:_refresh_look_at_angles()
+	local look_state = self.look_at_state
+	if look_state.target_name == nil then
+		return
+	end
+
+	if look_state.target_node == nil or not look_state.target_node:IsValid() then
+		local ok, resolved_node = pcall(function()
+			return self:_resolve_node_ref(look_state.target_name)
+		end)
+
+		if ok then
+			look_state.target_node = resolved_node
+		else
+			look_state.target_node = nil
+			return
+		end
+	end
+
+	local head_node = self.view_nodes[LOOK_NODES.head.node]
+	local head_rest_world = head_node:GetTransform():GetWorld()
+	local target_position = get_world_position(look_state.target_node)
+	local target_local = transform_point_to_local(head_rest_world, target_position)
+	local planar_distance = math.max(math.sqrt(target_local.x * target_local.x + target_local.z * target_local.z), 0.0001)
+	local yaw = atan2(target_local.x, -target_local.z)
+	local pitch = atan2(target_local.y, planar_distance)
+
+	look_state.yaw = clamp(yaw, -self.params.look_at_yaw_limit, self.params.look_at_yaw_limit)
+	look_state.pitch = clamp(pitch, self.params.look_at_pitch_down_limit, self.params.look_at_pitch_up_limit)
+end
+
+function Controller:_apply_look_at_pose()
+	local look_state = self.look_at_state
+	if look_state.blend <= 0.0 and not look_state.active then
+		return
+	end
+
+	self:_refresh_look_at_angles()
+
+	for _, look_key in ipairs({"neck", "head"}) do
+		local look_def = LOOK_NODES[look_key]
+		local node = self.view_nodes[look_def.node]
+		local rest_pose = self.rest_pose[look_def.node]
+		local weight = look_def.weight * look_state.blend
+		local rotation_offset = hg.Vec3(-look_state.pitch * weight, look_state.yaw * weight, 0.0)
+
+		node:GetTransform():SetPosRot(rest_pose.pos, rest_pose.rot + rotation_offset)
+	end
+end
+
+function Controller:_apply_grabbed_objects()
+	self:_update_hand_attach_proxies()
+end
+
+function Controller:_run_action(action)
+	local action_type = normalize_action_type(action.type)
+
+	if action_type == "move" then
+		if action.start ~= nil then
+			self:MoveFromNodeToNode(action.start, action.target)
+		else
+			self:MoveToNode(action.target)
+		end
+	elseif action_type == "rotate" then
+		if action.start ~= nil then
+			self:RotateFromNodeToNode(action.start, action.target)
+		else
+			self:RotateToNode(action.target)
+		end
+	elseif action_type == "lock_arm" then
+		local side = normalize_side(action.side)
+		if side == "left" then
+			self:PlaceLeftHandOnNode(action.target)
+		elseif side == "right" then
+			self:PlaceRightHandOnNode(action.target)
+		else
+			error(('AutomatonController: invalid side for lock_arm: "%s"'):format(tostring(action.side)))
+		end
+	elseif action_type == "unlock_arm" then
+		local side = normalize_side(action.side)
+		if side == "left" then
+			self:UnlockLeftHand()
+		elseif side == "right" then
+			self:UnlockRightHand()
+		else
+			error(('AutomatonController: invalid side for unlock_arm: "%s"'):format(tostring(action.side)))
+		end
+	elseif action_type == "grab" then
+		local side = normalize_side(action.side)
+		if side == "left" then
+			self:GrabNodeWithLeftHand(action.target)
+		elseif side == "right" then
+			self:GrabNodeWithRightHand(action.target)
+		else
+			error(('AutomatonController: invalid side for grab: "%s"'):format(tostring(action.side)))
+		end
+	elseif action_type == "release" then
+		local side = normalize_side(action.side)
+		if side == "left" then
+			self:ReleaseLeftHandObject()
+		elseif side == "right" then
+			self:ReleaseRightHandObject()
+		else
+			error(('AutomatonController: invalid side for release: "%s"'):format(tostring(action.side)))
+		end
+	elseif action_type == "look_at" then
+		self:LookAtNode(action.target)
+	elseif action_type == "clear_look_at" then
+		self:ClearLookAt()
+	else
+		error(('AutomatonController: unsupported action type "%s"'):format(tostring(action.type)))
+	end
+end
+
+function Controller:_is_action_complete(action)
+	local action_type = normalize_action_type(action.type)
+
+	if action_type == "move" then
+		return self:IsAtTarget()
+	elseif action_type == "rotate" then
+		return self:IsRotationDone()
+	elseif action_type == "lock_arm" then
+		local side = normalize_side(action.side)
+		return side ~= nil and self.hand_locks[side].blend >= 1.0
+	elseif action_type == "unlock_arm" then
+		local side = normalize_side(action.side)
+		return side ~= nil and self.hand_locks[side].blend <= 0.0
+	elseif action_type == "grab" or action_type == "release" then
+		return true
+	elseif action_type == "look_at" then
+		return self.look_at_state.blend >= 1.0
+	elseif action_type == "clear_look_at" then
+		return self.look_at_state.blend <= 0.0
+	end
+
+	return true
+end
+
+function Controller:_update_action_runner()
+	local runner = self.action_runner
+	if not runner.running then
+		return
+	end
+
+	while runner.running do
+		if runner.current_action == nil then
+			local next_action = runner.actions ~= nil and runner.actions[runner.next_index] or nil
+			if next_action == nil then
+				runner.running = false
+				runner.actions = nil
+				runner.current_action_type = nil
+				runner.current_action_index = 0
+				return
+			end
+
+			runner.current_action = next_action
+			runner.current_action_type = normalize_action_type(next_action.type)
+			runner.current_action_index = runner.next_index
+			runner.next_index = runner.next_index + 1
+			self:_run_action(next_action)
+		end
+
+		if self:_is_action_complete(runner.current_action) then
+			runner.current_action = nil
+			runner.current_action_type = nil
+		else
+			return
+		end
+	end
 end
 
 function Controller:_get_foot_world(side_name)
@@ -459,6 +954,7 @@ function Controller:_reset_gait_state()
 	self.step_active = false
 	self.step_progress = 0.0
 	self.step_pause_timer = 0.0
+	self.next_step_pause_duration = self.params.step_pause_duration
 	self.walk_phase = arm_phase_for_support_side(self.support_side)
 	self.current_forward = facing
 	self.current_right = right_from_yaw(root_rotation.y)
@@ -492,12 +988,66 @@ function Controller:_begin_step()
 		return
 	end
 
+	self.next_step_pause_duration = self.params.step_pause_duration
+
 	local swing = self.feet[self.swing_side]
 	swing.swing_from = copy_vec3(swing.planted_world)
 	swing.swing_to = self:_compute_step_target(self.swing_side)
 	swing.current_world = copy_vec3(swing.swing_from)
 	self.step_progress = 0.0
 	self.step_active = true
+end
+
+function Controller:_begin_rotate_step(yaw_error)
+	if self.step_active or self.step_pause_timer > 0.0 then
+		return
+	end
+
+	local step_delta = clamp(yaw_error, -self.params.rotate_step_angle, self.params.rotate_step_angle)
+	if math.abs(step_delta) <= 0.0001 then
+		return
+	end
+
+	local support = self.feet[self.support_side]
+	local swing = self.feet[self.swing_side]
+	local swing_offset = swing.planted_world - support.planted_world
+	local swing_target = support.planted_world + rotate_xz(hg.Vec3(swing_offset.x, 0.0, swing_offset.z), step_delta)
+
+	swing_target.y = self.foot_ground_y
+	swing.swing_from = copy_vec3(swing.planted_world)
+	swing.swing_to = swing_target
+	swing.current_world = copy_vec3(swing.swing_from)
+	self.step_progress = 0.0
+	self.step_active = true
+	self.next_step_pause_duration = self.params.rotate_step_pause_duration
+	self.turn_step.active = true
+	self.turn_step.delta_yaw = step_delta
+	self.turn_step.applied_yaw = 0.0
+	self.turn_step.pivot_world = copy_vec3(support.planted_world)
+end
+
+function Controller:_apply_turn_step_rotation(step_progress)
+	if not self.turn_step.active then
+		return
+	end
+
+	local desired_applied_yaw = self.turn_step.delta_yaw * step_progress
+	local delta_yaw = desired_applied_yaw - self.turn_step.applied_yaw
+	if math.abs(delta_yaw) <= 0.000001 then
+		return
+	end
+
+	local instance_transform = self.instance_node:GetTransform()
+	local position = instance_transform:GetPos()
+	local rotation = instance_transform:GetRot()
+	local pivot = self.turn_step.pivot_world
+	local relative = position - pivot
+
+	rotation.y = rotation.y + delta_yaw
+	position = pivot + rotate_xz(relative, delta_yaw)
+	position.y = self.ground_y
+	instance_transform:SetPosRot(position, rotation)
+	self.turn_step.applied_yaw = desired_applied_yaw
 end
 
 function Controller:_complete_step()
@@ -508,7 +1058,7 @@ function Controller:_complete_step()
 	self.swing_side = self.support_side == "left" and "right" or "left"
 	self.step_progress = 0.0
 	self.step_active = false
-	self.step_pause_timer = self.params.step_pause_duration
+	self.step_pause_timer = self.next_step_pause_duration
 	self.walk_phase = arm_phase_for_support_side(self.support_side)
 end
 
@@ -522,7 +1072,7 @@ function Controller:_update_footstep_state(dt)
 		return
 	end
 
-	local step_speed = math.max(self.motion_weight, self.params.step_settle_weight)
+	local step_speed = math.max(self.step_motion_weight, self.params.step_settle_weight)
 	local swing = self.feet[self.swing_side]
 	self.step_progress = clamp(self.step_progress + dt / self.params.step_duration * step_speed, 0.0, 1.0)
 
@@ -555,10 +1105,16 @@ function Controller:_update_root_motion(dt)
 	self.current_forward = forward_from_yaw(rotation.y)
 	self.current_right = right_from_yaw(rotation.y)
 	self.desired_direction = self.current_forward
+	self.step_motion_weight = self.motion_weight
+
+	if self.rotate_target_yaw ~= nil then
+		return self:_update_rotate_motion(dt)
+	end
 
 	if self.target_world == nil then
 		self.locomotion_speed = move_toward(self.locomotion_speed, 0.0, self.params.speed_deceleration * dt)
 		self.motion_weight = clamp(self.locomotion_speed / self.params.walk_speed, 0.0, 1.0)
+		self.step_motion_weight = self.motion_weight
 		self:_update_footstep_state(dt)
 		return move_step
 	end
@@ -598,10 +1154,12 @@ function Controller:_update_root_motion(dt)
 		(self.desired_speed > self.locomotion_speed and self.params.speed_acceleration or self.params.speed_deceleration) * dt
 	)
 	self.motion_weight = clamp(self.locomotion_speed / self.params.walk_speed, 0.0, 1.0)
+	self.step_motion_weight = self.motion_weight
 
 	if math.abs(yaw_error) > self.params.turn_in_place_angle and not self.step_active then
 		self.locomotion_speed = move_toward(self.locomotion_speed, 0.0, self.params.speed_deceleration * dt)
 		self.motion_weight = clamp(self.locomotion_speed / self.params.walk_speed, 0.0, 1.0)
+		self.step_motion_weight = self.motion_weight
 		self.state = "TurnInPlace"
 		self:_update_footstep_state(dt)
 		return move_step
@@ -634,6 +1192,62 @@ function Controller:_update_root_motion(dt)
 	end
 
 	return move_step
+end
+
+function Controller:_update_rotate_motion(dt)
+	local instance_transform = self.instance_node:GetTransform()
+	local rotation = instance_transform:GetRot()
+	local desired_yaw = self.rotate_target_yaw
+
+	self.distance_to_target = 0.0
+	self.desired_speed = 0.0
+	self.current_speed = 0.0
+	self.gait_drive = 0.0
+	self.locomotion_speed = 0.0
+	self.motion_weight = 0.0
+	self.step_motion_weight = self.params.rotate_step_progress_weight
+	self.desired_direction = forward_from_yaw(desired_yaw)
+	self.yaw_error = shortest_angle_rad(rotation.y, desired_yaw)
+
+	if math.abs(self.yaw_error) <= self.params.rotate_arrive_angle and not self.step_active and self.step_pause_timer <= 0.0 and not self.turn_step.active then
+		self.state = "RotateArrived"
+		self:_clear_rotate_target()
+		self.rotate_arrived = true
+		return 0.0
+	end
+
+	if not self.step_active and self.step_pause_timer <= 0.0 and not self.turn_step.active then
+		self:_begin_rotate_step(self.yaw_error)
+	end
+
+	self:_update_footstep_state(dt)
+
+	if self.turn_step.active then
+		local turn_progress = self.step_active and self.step_progress or 1.0
+		self:_apply_turn_step_rotation(turn_progress)
+
+		if not self.step_active then
+			self.turn_step.active = false
+			self.turn_step.delta_yaw = 0.0
+			self.turn_step.applied_yaw = 0.0
+		end
+	end
+
+	rotation = instance_transform:GetRot()
+	self.current_forward = forward_from_yaw(rotation.y)
+	self.current_right = right_from_yaw(rotation.y)
+	self.yaw_error = shortest_angle_rad(rotation.y, desired_yaw)
+	self.motion_weight = (self.step_active or self.step_pause_timer > 0.0) and self.params.rotate_motion_weight or 0.0
+	self.gait_drive = self.step_active and compute_step_drive(self.step_progress) or 0.0
+	self.state = self.step_active and "RotateStep" or (self.step_pause_timer > 0.0 and "RotatePause" or "RotateInPlace")
+
+	if math.abs(self.yaw_error) <= self.params.rotate_arrive_angle and not self.step_active and self.step_pause_timer <= 0.0 and not self.turn_step.active then
+		self.state = "RotateArrived"
+		self:_clear_rotate_target()
+		self.rotate_arrived = true
+	end
+
+	return 0.0
 end
 
 function Controller:_apply_hips_pose()
@@ -781,12 +1395,17 @@ end
 
 function Controller:Update(dt)
 	self:_refresh_instance_scale()
+	self:_update_action_runner()
 	self:_restore_controlled_pose()
 	self:_update_root_motion(dt)
 	self:_update_hand_lock_blends(dt)
+	self:_update_look_at_blend(dt)
 	self:_apply_walk_pose()
 	self:_apply_arm_pose("left")
 	self:_apply_arm_pose("right")
+	self:_apply_look_at_pose()
+	self:_apply_grabbed_objects()
+	self:_update_action_runner()
 end
 
 function Controller:IsMoving()
@@ -807,6 +1426,7 @@ function Controller:GetDebugState()
 		target = self.target_node_name or "-",
 		distance_to_target = self.distance_to_target,
 		yaw_error_deg = math.deg(self.yaw_error),
+		rotation_target_active = self.rotate_target_yaw ~= nil,
 		current_speed = self.current_speed,
 		gait_drive = self.gait_drive,
 		support_side = self.support_side,
@@ -814,7 +1434,13 @@ function Controller:GetDebugState()
 		step_pause_timer = self.step_pause_timer,
 		locomotion_speed = self.locomotion_speed,
 		left_hand = self.hand_locks.left.target_name or "free",
-		right_hand = self.hand_locks.right.target_name or "free"
+		right_hand = self.hand_locks.right.target_name or "free",
+		held_left = self.held_objects.left.node_ref or "-",
+		held_right = self.held_objects.right.node_ref or "-",
+		look_target = self.look_at_state.target_name or "-",
+		look_blend = self.look_at_state.blend,
+		current_action_type = self.action_runner.current_action_type or "-",
+		action_index = self.action_runner.current_action_index
 	}
 end
 
@@ -822,21 +1448,24 @@ local function create_controller(scene, instance_node_name)
 	local instance_node = ensure_valid_node(scene:GetNode(instance_node_name), instance_node_name)
 	local controller = {
 		scene = scene,
+		instance_node_name = instance_node_name,
 		instance_node = instance_node,
 		scene_view = instance_node:GetInstanceSceneView(),
-		host_nodes = {},
 		view_nodes = {},
 		rest_pose = {},
-		hand_targets = {},
+		node_refs = {},
 		target_world = nil,
 		target_node_name = nil,
 		arrived = false,
+		rotate_target_yaw = nil,
+		rotate_arrived = false,
 		state = "Idle",
 		current_speed = 0.0,
 		desired_speed = 0.0,
 		locomotion_speed = 0.0,
 		gait_drive = 0.0,
 		motion_weight = 0.0,
+		step_motion_weight = 0.0,
 		distance_to_target = 0.0,
 		yaw_error = 0.0,
 		walk_phase = 0.0,
@@ -845,6 +1474,7 @@ local function create_controller(scene, instance_node_name)
 		step_active = false,
 		step_progress = 0.0,
 		step_pause_timer = 0.0,
+		next_step_pause_duration = 0.0,
 		instance_scale = copy_vec3(instance_node:GetTransform():GetScale()),
 		uniform_scale = math.max(average_abs_scale(instance_node:GetTransform():GetScale()), 0.0001),
 		foot_ground_y = instance_node:GetTransform():GetPos().y,
@@ -878,13 +1508,46 @@ local function create_controller(scene, instance_node_name)
 			hips_sway = 0.016,
 			swing_foot_pitch = hg.Deg(8.0),
 			free_arm_swing_scale = 1.0,
-			hand_lock_blend_speed = 6.0,
+			hand_lock_blend_duration = 1.0,
+			look_at_blend_duration = 1.0,
+			rotate_step_angle = hg.Deg(10.0),
+			rotate_arrive_angle = hg.Deg(1.0),
+			rotate_step_pause_duration = 0.12,
+			rotate_motion_weight = 0.22,
+			rotate_step_progress_weight = 1.0,
+			look_at_yaw_limit = hg.Deg(70.0),
+			look_at_pitch_up_limit = hg.Deg(35.0),
+			look_at_pitch_down_limit = hg.Deg(-45.0),
 			arm_elbow_forward_bias = 0.35,
 			arm_elbow_outward_bias = 0.85
 		},
 		hand_locks = {
 			left = {active = false, blend = 0.0, target_name = nil, target_node = nil},
 			right = {active = false, blend = 0.0, target_name = nil, target_node = nil}
+		},
+		held_objects = {
+			left = {node = nil, node_ref = nil, original_parent = nil, attached_parent = nil, using_proxy = false},
+			right = {node = nil, node_ref = nil, original_parent = nil, attached_parent = nil, using_proxy = false}
+		},
+		hand_attach_proxies = {
+			left = nil,
+			right = nil
+		},
+		look_at_state = {
+			active = false,
+			blend = 0.0,
+			target_name = nil,
+			target_node = nil,
+			yaw = 0.0,
+			pitch = 0.0
+		},
+		action_runner = {
+			running = false,
+			actions = nil,
+			next_index = 1,
+			current_action = nil,
+			current_action_type = nil,
+			current_action_index = 0
 		},
 		arm_lengths = {
 			left = {upper = 0.0, lower = 0.0},
@@ -897,6 +1560,12 @@ local function create_controller(scene, instance_node_name)
 		feet = {
 			left = {planted_world = hg.Vec3(), swing_from = hg.Vec3(), swing_to = hg.Vec3(), current_world = hg.Vec3()},
 			right = {planted_world = hg.Vec3(), swing_from = hg.Vec3(), swing_to = hg.Vec3(), current_world = hg.Vec3()}
+		},
+		turn_step = {
+			active = false,
+			delta_yaw = 0.0,
+			applied_yaw = 0.0,
+			pivot_world = hg.Vec3()
 		}
 	}
 

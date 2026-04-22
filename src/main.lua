@@ -346,9 +346,16 @@ local function draw_compositing_tuning_ui(settings, ui_state, automaton_controll
 			hg.ImGuiText(("Step progress: %.2f"):format(debug_state.step_progress))
 			hg.ImGuiText(("Left hand: %s"):format(debug_state.left_hand))
 			hg.ImGuiText(("Right hand: %s"):format(debug_state.right_hand))
+			hg.ImGuiText(("Held left: %s"):format(debug_state.held_left))
+			hg.ImGuiText(("Held right: %s"):format(debug_state.held_right))
+			hg.ImGuiText(("Look target: %s"):format(debug_state.look_target))
+			hg.ImGuiText(("Look blend: %.2f"):format(debug_state.look_blend))
+			hg.ImGuiText(("Action: %s"):format(debug_state.current_action_type))
+			hg.ImGuiText(("Action index: %d"):format(debug_state.action_index))
 			hg.ImGuiText("F1/F2 move path_A <-> path_B")
 			hg.ImGuiText("F3/F4 left hand lock/unlock")
 			hg.ImGuiText("F5/F6 right hand lock/unlock")
+			hg.ImGuiText("F7/F8 rotate toward path_A/path_B")
 
 			if hg.ImGuiButton("Move path_A -> path_B") then
 				automaton_controller:MoveFromNodeToNode("path_A", "path_B")
@@ -356,6 +363,14 @@ local function draw_compositing_tuning_ui(settings, ui_state, automaton_controll
 			hg.ImGuiSameLine()
 			if hg.ImGuiButton("Move path_B -> path_A") then
 				automaton_controller:MoveFromNodeToNode("path_B", "path_A")
+			end
+
+			if hg.ImGuiButton("Rotate toward path_A") then
+				automaton_controller:RotateToNode("path_A")
+			end
+			hg.ImGuiSameLine()
+			if hg.ImGuiButton("Rotate toward path_B") then
+				automaton_controller:RotateToNode("path_B")
 			end
 
 			if hg.ImGuiButton("Lock left hand on hand_target_A") then
@@ -406,6 +421,14 @@ local function handle_automaton_debug_controls(keyboard, automaton_controller)
 
 	if keyboard:Pressed(hg.K_F6) then
 		automaton_controller:UnlockRightHand()
+	end
+
+	if keyboard:Pressed(hg.K_F7) then
+		automaton_controller:RotateToNode("path_A")
+	end
+
+	if keyboard:Pressed(hg.K_F8) then
+		automaton_controller:RotateToNode("path_B")
 	end
 end
 
