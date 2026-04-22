@@ -57,6 +57,24 @@ local FREE_ARM_NEUTRAL_OFFSETS = {
 	}
 }
 
+-- Deltas captured from walking-arms-and-legs.scn against
+-- walking-arms-along-the-body.scn. The real swing is mostly on the
+-- upper-arm local Z axis, and mirrored bones generate opposite world motion.
+local FREE_ARM_WALK_SWING_OFFSETS = {
+	left = {
+		shoulder = hg.Vec3(0.0, 0.0, 0.0),
+		arm = hg.Vec3(0.0, 0.0, hg.Deg(-40.254095)),
+		forearm = hg.Vec3(0.0, 0.0, 0.0),
+		hand = hg.Vec3(0.0, 0.0, 0.0)
+	},
+	right = {
+		shoulder = hg.Vec3(0.0, 0.0, 0.0),
+		arm = hg.Vec3(0.0, 0.0, hg.Deg(-46.066854)),
+		forearm = hg.Vec3(0.0, 0.0, 0.0),
+		hand = hg.Vec3(0.0, 0.0, 0.0)
+	}
+}
+
 local ARM_IK_YAW_OFFSETS = {
 	left = {
 		upper = -hg.Deg(10.515554),
@@ -190,6 +208,10 @@ end
 
 local function lerp_vec3(a, b, t)
 	return hg.Lerp(a, b, t)
+end
+
+local function scale_vec3(value, scalar)
+	return hg.Vec3(value.x * scalar, value.y * scalar, value.z * scalar)
 end
 
 local function resolve_chain_length(rest_pose)
@@ -662,33 +684,23 @@ function Controller:_apply_walk_pose()
 end
 
 function Controller:_compute_free_arm_pose(side_name)
-	local side = HAND_SIDES[side_name]
 	local neutral = FREE_ARM_NEUTRAL_OFFSETS[side_name]
+	local swing_offsets = FREE_ARM_WALK_SWING_OFFSETS[side_name]
 	local locomotion_weight = self.motion_weight
-	local phase = self.walk_phase + (side_name == "left" and math.pi or 0.0)
+	local phase = self.walk_phase
 	local swing = math.sin(phase) * locomotion_weight
+	local side = HAND_SIDES[side_name]
 	local shoulder_rest = self.rest_pose[side.shoulder]
 	local arm_rest = self.rest_pose[side.arm]
 	local forearm_rest = self.rest_pose[side.forearm]
 	local hand_rest = self.rest_pose[side.hand]
+	local swing_scale = swing * self.params.free_arm_swing_scale
 
 	return {
-		shoulder = shoulder_rest.rot + neutral.shoulder + hg.Vec3(
-			self.params.free_shoulder_pitch_swing * swing,
-			0.0,
-			side.sign * self.params.free_shoulder_roll_swing * swing
-		),
-		arm = arm_rest.rot + neutral.arm + hg.Vec3(
-			-self.params.free_arm_swing * swing,
-			side.sign * self.params.free_arm_yaw_swing * swing,
-			side.sign * self.params.free_arm_roll_swing * swing
-		),
-		forearm = forearm_rest.rot + neutral.forearm + hg.Vec3(
-			self.params.free_forearm_bend * locomotion_weight + math.max(0.0, -swing) * self.params.free_forearm_swing,
-			0.0,
-			0.0
-		),
-		hand = hand_rest.rot + neutral.hand + hg.Vec3(self.params.free_hand_local_pitch * locomotion_weight, 0.0, 0.0)
+		shoulder = shoulder_rest.rot + neutral.shoulder + scale_vec3(swing_offsets.shoulder, swing_scale),
+		arm = arm_rest.rot + neutral.arm + scale_vec3(swing_offsets.arm, swing_scale),
+		forearm = forearm_rest.rot + neutral.forearm + scale_vec3(swing_offsets.forearm, swing_scale),
+		hand = hand_rest.rot + neutral.hand + scale_vec3(swing_offsets.hand, swing_scale)
 	}
 end
 
@@ -856,14 +868,7 @@ local function create_controller(scene, instance_node_name)
 			hips_bob = 0.012,
 			hips_sway = 0.016,
 			swing_foot_pitch = hg.Deg(8.0),
-			free_shoulder_pitch_swing = hg.Deg(1.5),
-			free_shoulder_roll_swing = hg.Deg(2.5),
-			free_arm_swing = hg.Deg(14.0),
-			free_arm_yaw_swing = hg.Deg(2.0),
-			free_arm_roll_swing = hg.Deg(1.5),
-			free_forearm_bend = 0.0,
-			free_forearm_swing = hg.Deg(4.0),
-			free_hand_local_pitch = 0.0,
+			free_arm_swing_scale = 1.0,
 			hand_lock_blend_speed = 6.0,
 			arm_elbow_forward_bias = 0.35,
 			arm_elbow_outward_bias = 0.85
