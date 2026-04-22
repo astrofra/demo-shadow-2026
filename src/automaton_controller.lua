@@ -3,6 +3,9 @@ local hg = require("harfang")
 local WORLD_UP = hg.Vec3(0.0, 1.0, 0.0)
 local WORLD_RIGHT = hg.Vec3(1.0, 0.0, 0.0)
 local WORLD_FRONT = hg.Vec3(0.0, 0.0, -1.0)
+-- Mixamo rig front is already consistent with the controller's logical -Z forward.
+-- Keep the offset hook for future assets, but leave it disabled here.
+local MODEL_FACING_YAW_OFFSET = 0.0
 
 local HAND_SIDES = {
 	left = {
@@ -227,6 +230,21 @@ local function get_world_rotation(node)
 	return hg.GetRotation(node:GetTransform():GetWorld())
 end
 
+local function get_world_forward(node)
+	return safe_normalize(hg.GetZ(node:GetTransform():GetWorld()) * -1.0, WORLD_FRONT)
+end
+
+local function get_world_forward_xz(node, fallback)
+	return safe_normalize(flatten_xz(get_world_forward(node)), fallback)
+end
+
+local function compute_facing_from_landmarks(left_pos, right_pos, up_hint, fallback)
+	local lateral = right_pos - left_pos
+	local up = safe_normalize(up_hint, WORLD_UP)
+	local forward = hg.Cross(up, lateral)
+	return safe_normalize(flatten_xz(forward), fallback)
+end
+
 local function capture_world_matrix(node)
 	local world = node:GetTransform():GetWorld()
 	return hg.TransformationMat4(hg.GetT(world), hg.GetRotation(world), hg.GetS(world))
@@ -262,11 +280,11 @@ local function ensure_valid_node(node, name)
 end
 
 local function forward_from_yaw(yaw)
-	return hg.Vec3(math.sin(yaw), 0.0, -math.cos(yaw))
+	return hg.Vec3(-math.sin(yaw), 0.0, -math.cos(yaw))
 end
 
 local function right_from_yaw(yaw)
-	return hg.Vec3(math.cos(yaw), 0.0, math.sin(yaw))
+	return hg.Vec3(math.cos(yaw), 0.0, -math.sin(yaw))
 end
 
 local function arm_phase_for_support_side(side_name)
@@ -372,6 +390,22 @@ local function compute_swing_alpha(step_progress)
 	return 1.0
 end
 
+function Controller:_get_model_yaw_from_root_rotation(root_yaw)
+	return root_yaw + self.model_facing_yaw_offset
+end
+
+function Controller:_get_forward_from_root_rotation(root_yaw)
+	return forward_from_yaw(self:_get_model_yaw_from_root_rotation(root_yaw))
+end
+
+function Controller:_get_right_from_root_rotation(root_yaw)
+	return right_from_yaw(self:_get_model_yaw_from_root_rotation(root_yaw))
+end
+
+function Controller:_get_root_yaw_error(root_yaw, desired_model_yaw)
+	return shortest_angle_rad(self:_get_model_yaw_from_root_rotation(root_yaw), desired_model_yaw)
+end
+
 function Controller:_get_view_node(name)
 	local node = self.scene_view:GetNode(self.scene, name)
 	return ensure_valid_node(node, name)
@@ -465,11 +499,11 @@ function Controller:_compute_yaw_to_node(target_name, origin_position)
 	local to_target = flatten_xz(target_position - origin)
 
 	if hg.Len(to_target) <= 0.0001 then
-		return self.instance_node:GetTransform():GetRot().y
+		return self:_get_model_yaw_from_root_rotation(self.instance_node:GetTransform():GetRot().y)
 	end
 
 	local desired_direction = safe_normalize(to_target, self.current_forward)
-	return atan2(desired_direction.x, -desired_direction.z)
+	return atan2(-desired_direction.x, -desired_direction.z)
 end
 
 function Controller:_set_rotate_target(target_name)
@@ -928,7 +962,7 @@ function Controller:_reset_gait_state()
 
 	local root_position = self.instance_node:GetTransform():GetPos()
 	local root_rotation = self.instance_node:GetTransform():GetRot()
-	local facing = forward_from_yaw(root_rotation.y)
+	local facing = self:_get_forward_from_root_rotation(root_rotation.y)
 	local left_pos = self:_get_foot_world("left")
 	local right_pos = self:_get_foot_world("right")
 
@@ -957,7 +991,7 @@ function Controller:_reset_gait_state()
 	self.next_step_pause_duration = self.params.step_pause_duration
 	self.walk_phase = arm_phase_for_support_side(self.support_side)
 	self.current_forward = facing
-	self.current_right = right_from_yaw(root_rotation.y)
+	self.current_right = self:_get_right_from_root_rotation(root_rotation.y)
 	self.desired_direction = facing
 end
 
@@ -1102,8 +1136,8 @@ function Controller:_update_root_motion(dt)
 	self.gait_drive = 0.0
 	self.motion_weight = clamp(self.locomotion_speed / self.params.walk_speed, 0.0, 1.0)
 	self.yaw_error = 0.0
-	self.current_forward = forward_from_yaw(rotation.y)
-	self.current_right = right_from_yaw(rotation.y)
+	self.current_forward = self:_get_forward_from_root_rotation(rotation.y)
+	self.current_right = self:_get_right_from_root_rotation(rotation.y)
 	self.desired_direction = self.current_forward
 	self.step_motion_weight = self.motion_weight
 
@@ -1133,17 +1167,17 @@ function Controller:_update_root_motion(dt)
 		return move_step
 	end
 
-	local desired_direction = safe_normalize(to_target, forward_from_yaw(rotation.y))
-	local desired_yaw = atan2(desired_direction.x, -desired_direction.z)
-	local yaw_error = shortest_angle_rad(rotation.y, desired_yaw)
+	local desired_direction = safe_normalize(to_target, self:_get_forward_from_root_rotation(rotation.y))
+	local desired_yaw = atan2(-desired_direction.x, -desired_direction.z)
+	local yaw_error = self:_get_root_yaw_error(rotation.y, desired_yaw)
 	local yaw_step = clamp(yaw_error, -self.params.turn_speed * dt, self.params.turn_speed * dt)
 
 	rotation.y = rotation.y + yaw_step
 	instance_transform:SetRot(rotation)
 
 	self.yaw_error = yaw_error
-	self.current_forward = forward_from_yaw(rotation.y)
-	self.current_right = right_from_yaw(rotation.y)
+	self.current_forward = self:_get_forward_from_root_rotation(rotation.y)
+	self.current_right = self:_get_right_from_root_rotation(rotation.y)
 	self.desired_direction = desired_direction
 
 	local facing = clamp(hg.Dot(self.current_forward, desired_direction), 0.0, 1.0)
@@ -1207,7 +1241,7 @@ function Controller:_update_rotate_motion(dt)
 	self.motion_weight = 0.0
 	self.step_motion_weight = self.params.rotate_step_progress_weight
 	self.desired_direction = forward_from_yaw(desired_yaw)
-	self.yaw_error = shortest_angle_rad(rotation.y, desired_yaw)
+	self.yaw_error = self:_get_root_yaw_error(rotation.y, desired_yaw)
 
 	if math.abs(self.yaw_error) <= self.params.rotate_arrive_angle and not self.step_active and self.step_pause_timer <= 0.0 and not self.turn_step.active then
 		self.state = "RotateArrived"
@@ -1234,9 +1268,9 @@ function Controller:_update_rotate_motion(dt)
 	end
 
 	rotation = instance_transform:GetRot()
-	self.current_forward = forward_from_yaw(rotation.y)
-	self.current_right = right_from_yaw(rotation.y)
-	self.yaw_error = shortest_angle_rad(rotation.y, desired_yaw)
+	self.current_forward = self:_get_forward_from_root_rotation(rotation.y)
+	self.current_right = self:_get_right_from_root_rotation(rotation.y)
+	self.yaw_error = self:_get_root_yaw_error(rotation.y, desired_yaw)
 	self.motion_weight = (self.step_active or self.step_pause_timer > 0.0) and self.params.rotate_motion_weight or 0.0
 	self.gait_drive = self.step_active and compute_step_drive(self.step_progress) or 0.0
 	self.state = self.step_active and "RotateStep" or (self.step_pause_timer > 0.0 and "RotatePause" or "RotateInPlace")
@@ -1444,6 +1478,50 @@ function Controller:GetDebugState()
 	}
 end
 
+function Controller:GetDebugDrawState()
+	local root_position = copy_vec3(self.instance_node:GetTransform():GetPos())
+	local hips_node = self.view_nodes["mixamorig:Hips"]
+	local head_node = self.view_nodes["mixamorig:Head"]
+	local left_shoulder_pos = get_world_position(self.view_nodes["mixamorig:LeftShoulder"])
+	local right_shoulder_pos = get_world_position(self.view_nodes["mixamorig:RightShoulder"])
+	local left_up_leg_pos = get_world_position(self.view_nodes["mixamorig:LeftUpLeg"])
+	local right_up_leg_pos = get_world_position(self.view_nodes["mixamorig:RightUpLeg"])
+	local target_position = nil
+	local hips_position = get_world_position(hips_node)
+	local head_position = get_world_position(head_node)
+	local shoulder_center = (left_shoulder_pos + right_shoulder_pos) * 0.5
+	local pelvis_forward = compute_facing_from_landmarks(left_up_leg_pos, right_up_leg_pos, shoulder_center - hips_position, self.current_forward)
+	local chest_forward = compute_facing_from_landmarks(left_shoulder_pos, right_shoulder_pos, head_position - shoulder_center, self.current_forward)
+
+	if self.target_node_name ~= nil then
+		local ok, resolved = pcall(function()
+			return self:_resolve_node_ref(self.target_node_name)
+		end)
+
+		if ok and resolved ~= nil and resolved:IsValid() then
+			target_position = get_world_position(resolved)
+		end
+	elseif self.target_world ~= nil then
+		target_position = copy_vec3(self.target_world)
+	end
+
+	return {
+		root_pos = root_position,
+		hips_pos = hips_position,
+		head_pos = head_position,
+		target_pos = target_position,
+		current_forward = copy_vec3(self.current_forward),
+		desired_direction = copy_vec3(self.desired_direction),
+		root_world_forward = get_world_forward_xz(self.instance_node, self.current_forward),
+		hips_forward = pelvis_forward,
+		head_forward = chest_forward,
+		left_foot_pos = copy_vec3(self.feet.left.current_world),
+		right_foot_pos = copy_vec3(self.feet.right.current_world),
+		support_side = self.support_side,
+		state = self.state
+	}
+end
+
 local function create_controller(scene, instance_node_name)
 	local instance_node = ensure_valid_node(scene:GetNode(instance_node_name), instance_node_name)
 	local controller = {
@@ -1475,12 +1553,13 @@ local function create_controller(scene, instance_node_name)
 		step_progress = 0.0,
 		step_pause_timer = 0.0,
 		next_step_pause_duration = 0.0,
+		model_facing_yaw_offset = MODEL_FACING_YAW_OFFSET,
 		instance_scale = copy_vec3(instance_node:GetTransform():GetScale()),
 		uniform_scale = math.max(average_abs_scale(instance_node:GetTransform():GetScale()), 0.0001),
 		foot_ground_y = instance_node:GetTransform():GetPos().y,
-		current_forward = forward_from_yaw(instance_node:GetTransform():GetRot().y),
-		current_right = right_from_yaw(instance_node:GetTransform():GetRot().y),
-		desired_direction = forward_from_yaw(instance_node:GetTransform():GetRot().y),
+		current_forward = forward_from_yaw(instance_node:GetTransform():GetRot().y + MODEL_FACING_YAW_OFFSET),
+		current_right = right_from_yaw(instance_node:GetTransform():GetRot().y + MODEL_FACING_YAW_OFFSET),
+		desired_direction = forward_from_yaw(instance_node:GetTransform():GetRot().y + MODEL_FACING_YAW_OFFSET),
 		ground_y = instance_node:GetTransform():GetPos().y,
 		params = {
 			walk_speed = 1.8,
@@ -1497,7 +1576,7 @@ local function create_controller(scene, instance_node_name)
 			arrival_step_scale = 0.7,
 			foot_spacing = 0.12,
 			foot_lift_height = 0.11,
-			step_pause_duration = 0.5,
+			step_pause_duration = 0.15,
 			step_settle_weight = 0.2,
 			step_start_weight = 0.08,
 			speed_acceleration = 1.8,

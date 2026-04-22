@@ -71,6 +71,47 @@ local function open_demo_window(res_x, res_y, default_fullscreen)
 	return win
 end
 
+local function draw_line(pos_a, pos_b, line_color, view_id, vtx_line_layout, line_shader)
+	local vtx = hg.Vertices(vtx_line_layout, 2)
+	vtx:Begin(0):SetPos(pos_a):SetColor0(line_color):End()
+	vtx:Begin(1):SetPos(pos_b):SetColor0(line_color):End()
+	hg.DrawLines(view_id, vtx, line_shader)
+end
+
+local function push_line(lines, pos_a, pos_b, color)
+	lines[#lines + 1] = {pos_a = pos_a, pos_b = pos_b, color = color}
+end
+
+local function append_automaton_debug_lines(lines, automaton_controller)
+	if automaton_controller == nil then
+		return
+	end
+
+	local debug_draw_state = automaton_controller:GetDebugDrawState()
+	if debug_draw_state == nil then
+		return
+	end
+
+	local root_origin = debug_draw_state.root_pos + hg.Vec3(0.0, 0.05, 0.0)
+	local root_logic_origin = root_origin + hg.Vec3(0.0, 0.00, 0.0)
+	local root_world_origin = root_origin + hg.Vec3(0.0, 0.08, 0.0)
+	local desired_origin = root_origin + hg.Vec3(0.0, 0.16, 0.0)
+	local hips_origin = debug_draw_state.hips_pos + hg.Vec3(0.0, 0.03, 0.0)
+	local head_origin = debug_draw_state.head_pos + hg.Vec3(0.0, 0.03, 0.0)
+
+	push_line(lines, root_logic_origin, root_logic_origin + debug_draw_state.current_forward * 1.3, hg.Color(1.0, 0.9, 0.1, 1.0))
+	push_line(lines, root_world_origin, root_world_origin + debug_draw_state.root_world_forward * 1.15, hg.Color(1.0, 0.5, 0.0, 1.0))
+	push_line(lines, desired_origin, desired_origin + debug_draw_state.desired_direction * 1.1, hg.Color(1.0, 0.2, 0.8, 1.0))
+	push_line(lines, hips_origin, hips_origin + debug_draw_state.hips_forward * 0.8, hg.Color(0.0, 1.0, 1.0, 1.0))
+	push_line(lines, head_origin, head_origin + debug_draw_state.head_forward * 0.65, hg.Color(0.2, 1.0, 0.4, 1.0))
+	push_line(lines, debug_draw_state.left_foot_pos, debug_draw_state.right_foot_pos, hg.Color(0.25, 0.6, 1.0, 1.0))
+
+	if debug_draw_state.target_pos ~= nil then
+		local target_pos = hg.Vec3(debug_draw_state.target_pos.x, desired_origin.y, debug_draw_state.target_pos.z)
+		push_line(lines, desired_origin, target_pos, hg.Color(1.0, 1.0, 1.0, 1.0))
+	end
+end
+
 local function clone_compositing_settings(source)
 	local copy = {}
 
@@ -299,7 +340,7 @@ local function start_robot_scenario(automaton_controller)
 	automaton_controller:RunActionSequence(robot_actions)
 end
 
-local function draw_compositing_tuning_ui(settings, ui_state, automaton_controller)
+local function draw_compositing_tuning_ui(settings, ui_state, automaton_controller, show_automaton_debug_draw)
 	local current_section = nil
 
 	hg.ImGuiSetNextWindowPos(hg.Vec2(24, 24), hg.ImGuiCond_Once)
@@ -376,6 +417,8 @@ local function draw_compositing_tuning_ui(settings, ui_state, automaton_controll
 			hg.ImGuiText("F5/F6 right hand lock/unlock")
 			hg.ImGuiText(("F7/F8 rotate toward %s/%s"):format(DEBUG_ROTATE_TARGET_NODE_A, DEBUG_ROTATE_TARGET_NODE_B))
 			hg.ImGuiText("F9 rerun robot scenario")
+			hg.ImGuiText(("F10 debug draw: %s"):format(show_automaton_debug_draw and "on" or "off"))
+			hg.ImGuiText("Debug colors: yellow=compensated root, orange=raw root axis, pink=desired, cyan=pelvis, green=chest, white=target")
 
 			if hg.ImGuiButton(("Move %s -> %s"):format(DEBUG_MOVE_START_NODE, DEBUG_MOVE_TARGET_NODE)) then
 				automaton_controller:MoveFromNodeToNode(DEBUG_MOVE_START_NODE, DEBUG_MOVE_TARGET_NODE)
@@ -470,9 +513,12 @@ local function run_demo_3d(win, res_x, res_y, config, compositing_settings, load
 	local circular_blur_modulator = create_strength_modulator("COMPOSITING_CIRCULAR_BLUR_STRENGTH", math.pi * 0.37, 1.15)
 	local imgui_prg = hg.LoadProgramFromAssets("core/shader/imgui")
 	local imgui_img_prg = hg.LoadProgramFromAssets("core/shader/imgui_image")
+	local debug_line_layout = hg.VertexLayoutPosFloatColorUInt8()
+	local debug_line_shader = hg.LoadProgramFromAssets("shaders/pos_rgb")
 	local mouse = hg.Mouse()
 	local keyboard = hg.Keyboard()
 	local show_compositing_ui = false
+	local show_automaton_debug_draw = false
 	local ui_state = {dirty = false, status_message = load_status_message or ""}
 	local frame = 0
 
@@ -490,6 +536,10 @@ local function run_demo_3d(win, res_x, res_y, config, compositing_settings, load
 			hg.ImGuiClearInputBuffer()
 		end
 
+		if keyboard:Pressed(hg.K_F10) then
+			show_automaton_debug_draw = not show_automaton_debug_draw
+		end
+
 		if keyboard:Down(hg.K_Escape) then
 			break
 		end
@@ -501,14 +551,16 @@ local function run_demo_3d(win, res_x, res_y, config, compositing_settings, load
 		hg.ImGuiBeginFrame(res_x, res_y, dt, mouse:GetState(), keyboard:GetState())
 
 		if show_compositing_ui then
-			draw_compositing_tuning_ui(compositing_settings, ui_state, automaton_controller)
+			draw_compositing_tuning_ui(compositing_settings, ui_state, automaton_controller, show_automaton_debug_draw)
 		end
 
 		automaton_controller:Update(dt_sec)
 
+		local view_id
+		local pass_ids
 		if config.enable_aaa then
 			apply_compositing_settings(pipeline_aaa_config, compositing_settings, dt_sec, vignette_modulator, circular_blur_modulator)
-			hg.SubmitSceneToPipeline(
+			view_id, pass_ids = hg.SubmitSceneToPipeline(
 				0,
 				scene,
 				hg.IntRect(0, 0, res_x, res_y),
@@ -520,7 +572,7 @@ local function run_demo_3d(win, res_x, res_y, config, compositing_settings, load
 				frame
 			)
 		else
-			hg.SubmitSceneToPipeline(
+			view_id, pass_ids = hg.SubmitSceneToPipeline(
 				0,
 				scene,
 				hg.IntRect(0, 0, res_x, res_y),
@@ -528,6 +580,17 @@ local function run_demo_3d(win, res_x, res_y, config, compositing_settings, load
 				pipeline,
 				res
 			)
+		end
+
+		if show_automaton_debug_draw then
+			local debug_lines = {}
+			local opaque_view_id = hg.GetSceneForwardPipelinePassViewId(pass_ids, hg.SFPP_Opaque)
+
+			append_automaton_debug_lines(debug_lines, automaton_controller)
+
+			for i = 1, #debug_lines do
+				draw_line(debug_lines[i].pos_a, debug_lines[i].pos_b, debug_lines[i].color, opaque_view_id, debug_line_layout, debug_line_shader)
+			end
 		end
 
 		hg.SetView2D(COMPOSITING_UI_VIEW_ID, 0, 0, res_x, res_y, -1, 0, hg.CF_Depth, hg.Color.Black, 1, 0)
