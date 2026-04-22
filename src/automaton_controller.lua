@@ -206,6 +206,14 @@ local function right_from_yaw(yaw)
 	return hg.Vec3(math.cos(yaw), 0.0, math.sin(yaw))
 end
 
+local function arm_phase_for_support_side(side_name)
+	if side_name == "left" then
+		return math.pi * 0.5
+	end
+
+	return math.pi * 1.5
+end
+
 local function lerp_vec3(a, b, t)
 	return hg.Lerp(a, b, t)
 end
@@ -451,7 +459,7 @@ function Controller:_reset_gait_state()
 	self.step_active = false
 	self.step_progress = 0.0
 	self.step_pause_timer = 0.0
-	self.walk_phase = self.support_side == "left" and 0.0 or math.pi
+	self.walk_phase = arm_phase_for_support_side(self.support_side)
 	self.current_forward = facing
 	self.current_right = right_from_yaw(root_rotation.y)
 	self.desired_direction = facing
@@ -501,6 +509,7 @@ function Controller:_complete_step()
 	self.step_progress = 0.0
 	self.step_active = false
 	self.step_pause_timer = self.params.step_pause_duration
+	self.walk_phase = arm_phase_for_support_side(self.support_side)
 end
 
 function Controller:_update_footstep_state(dt)
@@ -509,7 +518,7 @@ function Controller:_update_footstep_state(dt)
 
 	if not self.step_active then
 		self.step_pause_timer = math.max(0.0, self.step_pause_timer - dt)
-		self.walk_phase = self.support_side == "left" and 0.0 or math.pi
+		self.walk_phase = arm_phase_for_support_side(self.support_side)
 		return
 	end
 
@@ -521,7 +530,7 @@ function Controller:_update_footstep_state(dt)
 	local foot_pos = lerp_vec3(swing.swing_from, swing.swing_to, swing_alpha)
 	foot_pos.y = self.foot_ground_y + math.sin(swing_alpha * math.pi) * self:_scaled_distance(self.params.foot_lift_height)
 	swing.current_world = foot_pos
-	self.walk_phase = (self.support_side == "left" and 0.0 or math.pi) + self.step_progress * math.pi
+	self.walk_phase = arm_phase_for_support_side(self.support_side) + self.step_progress * math.pi
 
 	if self.step_progress >= 1.0 then
 		self:_complete_step()
