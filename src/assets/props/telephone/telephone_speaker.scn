@@ -3,9 +3,9 @@
 		"clear_color": true,
 		"clear_z": true,
 		"color": [
-			90,
-			90,
-			90,
+			0,
+			0,
+			0,
 			255
 		]
 	},
@@ -14,15 +14,15 @@
 			0,
 			0,
 			0,
-			255
+			0
 		],
 		"brdf_map": "core/pbr/brdf.dds",
 		"current_camera": null,
 		"fog_color": [
-			255,
-			255,
-			255,
-			255
+			0,
+			0,
+			0,
+			0
 		],
 		"fog_far": 0.0,
 		"fog_near": 0.0,
@@ -48,14 +48,6 @@
 			"type": "sphere"
 		}
 	},
-	"instances": [
-		{
-			"name": "props/square_shadow/square_shadow.scn"
-		},
-		{
-			"name": "props/square_shadow/round_shadow.scn"
-		}
-	],
 	"key_values": null,
 	"nodes": [
 		{
@@ -68,33 +60,7 @@
 			],
 			"disabled": false,
 			"idx": 0,
-			"name": "telephone_body"
-		},
-		{
-			"components": [
-				1,
-				4294967295,
-				4294967295,
-				4294967295,
-				4294967295
-			],
-			"disabled": false,
-			"idx": 2,
-			"instance": 0,
-			"name": "square_shadow"
-		},
-		{
-			"components": [
-				2,
-				4294967295,
-				4294967295,
-				4294967295,
-				4294967295
-			],
-			"disabled": false,
-			"idx": 3,
-			"instance": 1,
-			"name": "round_shadow"
+			"name": "telephone_speaker"
 		}
 	],
 	"objects": [
@@ -178,7 +144,7 @@
 					"write_z": true
 				}
 			],
-			"name": "props/telephone/telephone_body_42.geo"
+			"name": "props/telephone/telephone_speaker_43.geo"
 		}
 	],
 	"transforms": [
@@ -198,42 +164,6 @@
 				1.0,
 				1.0,
 				1.0
-			]
-		},
-		{
-			"parent": null,
-			"pos": [
-				0.0,
-				-0.02651386521756649,
-				-0.006672364193946123
-			],
-			"rot": [
-				-89.9999771118164,
-				0.0,
-				0.0
-			],
-			"scl": [
-				0.44941169023513794,
-				0.9999999403953552,
-				0.7048967480659485
-			]
-		},
-		{
-			"parent": null,
-			"pos": [
-				0.0,
-				0.0312007088214159,
-				-0.006665508262813091
-			],
-			"rot": [
-				-89.9999771118164,
-				0.0,
-				0.0
-			],
-			"scl": [
-				0.7258275151252747,
-				0.9999999403953552,
-				0.7221737504005432
 			]
 		}
 	]
