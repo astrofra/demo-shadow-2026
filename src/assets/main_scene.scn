@@ -1,7 +1,16 @@
 {
 	"cameras": [
 		{
-			"fov": 0.2565633952617645,
+			"fov": 1.0471975803375244,
+			"ortho": false,
+			"size": 1.0,
+			"zrange": {
+				"zfar": 1000.0,
+				"znear": 0.009999999776482582
+			}
+		},
+		{
+			"fov": 1.0471975803375244,
 			"ortho": false,
 			"size": 1.0,
 			"zrange": {
@@ -28,7 +37,7 @@
 			255
 		],
 		"brdf_map": "core/pbr/brdf.dds",
-		"current_camera": 21,
+		"current_camera": 72,
 		"fog_color": [
 			17,
 			9,
@@ -62,6 +71,9 @@
 	"instances": [
 		{
 			"name": "characters/automaton/automaton-rig-tpose.scn"
+		},
+		{
+			"name": "props/telephone/telephone.scn"
 		}
 	],
 	"key_values": null,
@@ -308,50 +320,14 @@
 				4294967295
 			],
 			"disabled": false,
-			"idx": 12,
-			"name": "grass_0"
-		},
-		{
-			"components": [
-				13,
-				4294967295,
-				13,
-				4294967295,
-				4294967295
-			],
-			"disabled": false,
-			"idx": 13,
-			"name": "grass_2"
-		},
-		{
-			"components": [
-				14,
-				4294967295,
-				14,
-				4294967295,
-				4294967295
-			],
-			"disabled": false,
-			"idx": 14,
-			"name": "grass_1"
-		},
-		{
-			"components": [
-				15,
-				4294967295,
-				15,
-				4294967295,
-				4294967295
-			],
-			"disabled": false,
 			"idx": 15,
 			"name": "reservoir"
 		},
 		{
 			"components": [
-				16,
+				13,
 				4294967295,
-				16,
+				13,
 				4294967295,
 				4294967295
 			],
@@ -361,9 +337,9 @@
 		},
 		{
 			"components": [
-				17,
+				14,
 				4294967295,
-				17,
+				14,
 				4294967295,
 				4294967295
 			],
@@ -373,7 +349,7 @@
 		},
 		{
 			"components": [
-				18,
+				15,
 				4294967295,
 				4294967295,
 				0,
@@ -385,7 +361,7 @@
 		},
 		{
 			"components": [
-				19,
+				16,
 				4294967295,
 				4294967295,
 				1,
@@ -397,7 +373,7 @@
 		},
 		{
 			"components": [
-				20,
+				17,
 				4294967295,
 				4294967295,
 				2,
@@ -409,7 +385,7 @@
 		},
 		{
 			"components": [
-				21,
+				18,
 				0,
 				4294967295,
 				4294967295,
@@ -421,7 +397,7 @@
 		},
 		{
 			"components": [
-				22,
+				19,
 				4294967295,
 				4294967295,
 				4294967295,
@@ -434,7 +410,7 @@
 		},
 		{
 			"components": [
-				23,
+				20,
 				4294967295,
 				4294967295,
 				4294967295,
@@ -446,7 +422,7 @@
 		},
 		{
 			"components": [
-				24,
+				21,
 				4294967295,
 				4294967295,
 				4294967295,
@@ -458,7 +434,7 @@
 		},
 		{
 			"components": [
-				25,
+				22,
 				4294967295,
 				4294967295,
 				4294967295,
@@ -467,6 +443,31 @@
 			"disabled": false,
 			"idx": 25,
 			"name": "path_C"
+		},
+		{
+			"components": [
+				23,
+				4294967295,
+				4294967295,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 69,
+			"instance": 1,
+			"name": "telephone"
+		},
+		{
+			"components": [
+				24,
+				1,
+				4294967295,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 72,
+			"name": "Camera2"
 		}
 	],
 	"objects": [
@@ -1043,6 +1044,13 @@
 					"face_culling": "cw",
 					"flags": [],
 					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uOcclusionRoughnessMetalnessMap",
+							"path": "props/desert_house/house_pieces_color.png",
+							"stage": 1
+						}
+					],
 					"values": [
 						{
 							"name": "uBaseOpacityColor",
@@ -1193,366 +1201,6 @@
 				}
 			],
 			"name": "props/desert_house/wooden_stick_short_53.geo"
-		},
-		{
-			"bones": [],
-			"material_infos": [
-				{
-					"name": "leaves_mat"
-				},
-				{
-					"name": "dry_grass_mat"
-				},
-				{
-					"name": "dirt_shadow"
-				}
-			],
-			"materials": [
-				{
-					"blend_mode": "opaque",
-					"depth_test": "less",
-					"face_culling": "cw",
-					"flags": [],
-					"program": "core/shader/pbr.hps",
-					"textures": [
-						{
-							"name": "uBaseOpacityMap",
-							"path": "props/desert_house/leaves_color.png",
-							"stage": 0
-						}
-					],
-					"values": [
-						{
-							"name": "uBaseOpacityColor",
-							"type": "vec4",
-							"value": [
-								0.5,
-								0.5,
-								0.5,
-								1.0
-							]
-						},
-						{
-							"name": "uOcclusionRoughnessMetalnessColor",
-							"type": "vec4",
-							"value": [
-								1.0,
-								0.5,
-								0.25,
-								0.0
-							]
-						},
-						{
-							"name": "uSelfColor",
-							"type": "vec4",
-							"value": [
-								0.0,
-								0.0,
-								0.0,
-								-1.0
-							]
-						}
-					],
-					"write_a": true,
-					"write_b": true,
-					"write_g": true,
-					"write_r": true,
-					"write_z": true
-				},
-				{
-					"blend_mode": "opaque",
-					"depth_test": "less",
-					"face_culling": "cw",
-					"flags": [],
-					"program": "core/shader/pbr.hps",
-					"values": [
-						{
-							"name": "uBaseOpacityColor",
-							"type": "vec4",
-							"value": [
-								0.5,
-								0.5,
-								0.5,
-								1.0
-							]
-						},
-						{
-							"name": "uOcclusionRoughnessMetalnessColor",
-							"type": "vec4",
-							"value": [
-								1.0,
-								0.5,
-								0.25,
-								0.0
-							]
-						},
-						{
-							"name": "uSelfColor",
-							"type": "vec4",
-							"value": [
-								0.0,
-								0.0,
-								0.0,
-								-1.0
-							]
-						}
-					],
-					"write_a": true,
-					"write_b": true,
-					"write_g": true,
-					"write_r": true,
-					"write_z": true
-				},
-				{
-					"blend_mode": "opaque",
-					"depth_test": "less",
-					"face_culling": "cw",
-					"flags": [],
-					"program": "core/shader/pbr.hps",
-					"values": [
-						{
-							"name": "uBaseOpacityColor",
-							"type": "vec4",
-							"value": [
-								0.5,
-								0.5,
-								0.5,
-								1.0
-							]
-						},
-						{
-							"name": "uOcclusionRoughnessMetalnessColor",
-							"type": "vec4",
-							"value": [
-								1.0,
-								0.5,
-								0.25,
-								0.0
-							]
-						},
-						{
-							"name": "uSelfColor",
-							"type": "vec4",
-							"value": [
-								0.0,
-								0.0,
-								0.0,
-								-1.0
-							]
-						}
-					],
-					"write_a": true,
-					"write_b": true,
-					"write_g": true,
-					"write_r": true,
-					"write_z": true
-				}
-			],
-			"name": "props/desert_house/grass_0_54.geo"
-		},
-		{
-			"bones": [],
-			"material_infos": [
-				{
-					"name": "dry_grass_mat"
-				},
-				{
-					"name": "dirt_shadow"
-				}
-			],
-			"materials": [
-				{
-					"blend_mode": "opaque",
-					"depth_test": "less",
-					"face_culling": "cw",
-					"flags": [],
-					"program": "core/shader/pbr.hps",
-					"values": [
-						{
-							"name": "uBaseOpacityColor",
-							"type": "vec4",
-							"value": [
-								0.5,
-								0.5,
-								0.5,
-								1.0
-							]
-						},
-						{
-							"name": "uOcclusionRoughnessMetalnessColor",
-							"type": "vec4",
-							"value": [
-								1.0,
-								0.5,
-								0.25,
-								0.0
-							]
-						},
-						{
-							"name": "uSelfColor",
-							"type": "vec4",
-							"value": [
-								0.0,
-								0.0,
-								0.0,
-								-1.0
-							]
-						}
-					],
-					"write_a": true,
-					"write_b": true,
-					"write_g": true,
-					"write_r": true,
-					"write_z": true
-				},
-				{
-					"blend_mode": "opaque",
-					"depth_test": "less",
-					"face_culling": "cw",
-					"flags": [],
-					"program": "core/shader/pbr.hps",
-					"values": [
-						{
-							"name": "uBaseOpacityColor",
-							"type": "vec4",
-							"value": [
-								0.5,
-								0.5,
-								0.5,
-								1.0
-							]
-						},
-						{
-							"name": "uOcclusionRoughnessMetalnessColor",
-							"type": "vec4",
-							"value": [
-								1.0,
-								0.5,
-								0.25,
-								0.0
-							]
-						},
-						{
-							"name": "uSelfColor",
-							"type": "vec4",
-							"value": [
-								0.0,
-								0.0,
-								0.0,
-								-1.0
-							]
-						}
-					],
-					"write_a": true,
-					"write_b": true,
-					"write_g": true,
-					"write_r": true,
-					"write_z": true
-				}
-			],
-			"name": "props/desert_house/grass_2_55.geo"
-		},
-		{
-			"bones": [],
-			"material_infos": [
-				{
-					"name": "dry_grass_mat"
-				},
-				{
-					"name": "dirt_shadow"
-				}
-			],
-			"materials": [
-				{
-					"blend_mode": "opaque",
-					"depth_test": "less",
-					"face_culling": "cw",
-					"flags": [],
-					"program": "core/shader/pbr.hps",
-					"values": [
-						{
-							"name": "uBaseOpacityColor",
-							"type": "vec4",
-							"value": [
-								0.5,
-								0.5,
-								0.5,
-								1.0
-							]
-						},
-						{
-							"name": "uOcclusionRoughnessMetalnessColor",
-							"type": "vec4",
-							"value": [
-								1.0,
-								0.5,
-								0.25,
-								0.0
-							]
-						},
-						{
-							"name": "uSelfColor",
-							"type": "vec4",
-							"value": [
-								0.0,
-								0.0,
-								0.0,
-								-1.0
-							]
-						}
-					],
-					"write_a": true,
-					"write_b": true,
-					"write_g": true,
-					"write_r": true,
-					"write_z": true
-				},
-				{
-					"blend_mode": "opaque",
-					"depth_test": "less",
-					"face_culling": "cw",
-					"flags": [],
-					"program": "core/shader/pbr.hps",
-					"values": [
-						{
-							"name": "uBaseOpacityColor",
-							"type": "vec4",
-							"value": [
-								0.5,
-								0.5,
-								0.5,
-								1.0
-							]
-						},
-						{
-							"name": "uOcclusionRoughnessMetalnessColor",
-							"type": "vec4",
-							"value": [
-								1.0,
-								0.5,
-								0.25,
-								0.0
-							]
-						},
-						{
-							"name": "uSelfColor",
-							"type": "vec4",
-							"value": [
-								0.0,
-								0.0,
-								0.0,
-								-1.0
-							]
-						}
-					],
-					"write_a": true,
-					"write_b": true,
-					"write_g": true,
-					"write_r": true,
-					"write_z": true
-				}
-			],
-			"name": "props/desert_house/grass_1_56.geo"
 		},
 		{
 			"bones": [],
@@ -1993,90 +1641,36 @@
 			"parent": null,
 			"pos": [
 				3.0408449172973633,
-				0.8565571904182434,
-				-0.21989300847053528
+				0.8565569519996643,
+				2.7923717498779297
 			],
 			"rot": [
-				90.0,
+				89.99999237060547,
 				0.0,
 				0.0
 			],
 			"scl": [
 				1.0,
-				1.0,
-				1.0
+				0.9999999403953552,
+				0.9999999403953552
 			]
 		},
 		{
 			"parent": null,
 			"pos": [
 				3.02378511428833,
-				0.5436542630195618,
-				-0.3005715012550354
+				0.5436540246009827,
+				2.711693286895752
 			],
 			"rot": [
-				90.0,
+				89.99999237060547,
 				0.0,
 				0.0
 			],
 			"scl": [
 				1.0,
-				1.0,
-				1.0
-			]
-		},
-		{
-			"parent": null,
-			"pos": [
-				0.7866377830505371,
-				0.0,
-				-9.412834167480469
-			],
-			"rot": [
-				90.0,
-				0.0,
-				0.0
-			],
-			"scl": [
-				1.0,
-				1.0,
-				1.0
-			]
-		},
-		{
-			"parent": null,
-			"pos": [
-				-0.3578084111213684,
-				0.0,
-				-11.540177345275879
-			],
-			"rot": [
-				90.0,
-				0.0,
-				0.0
-			],
-			"scl": [
-				1.0,
-				1.0,
-				1.0
-			]
-		},
-		{
-			"parent": null,
-			"pos": [
-				-2.229694128036499,
-				0.0,
-				-9.750428199768066
-			],
-			"rot": [
-				90.0,
-				0.0,
-				0.0
-			],
-			"scl": [
-				1.0,
-				1.0,
-				1.0
+				0.9999999403953552,
+				0.9999999403953552
 			]
 		},
 		{
@@ -2159,7 +1753,7 @@
 				-1.027187863655854e-07
 			],
 			"rot": [
-				-26.256078720092773,
+				-26.25607681274414,
 				152.33575439453125,
 				-166.943603515625
 			],
@@ -2173,8 +1767,8 @@
 			"parent": null,
 			"pos": [
 				3.717487335205078,
-				3.8181700706481934,
-				-2.4716014862060547
+				3.8947601318359375,
+				-3.189459800720215
 			],
 			"rot": [
 				-0.0,
@@ -2196,7 +1790,7 @@
 			],
 			"rot": [
 				7.591828346252441,
-				-38.531864166259766,
+				-38.5318603515625,
 				0.0
 			],
 			"scl": [
@@ -2268,13 +1862,49 @@
 			],
 			"rot": [
 				-0.0,
-				43.25857925415039,
+				43.258575439453125,
 				0.0
 			],
 			"scl": [
 				1.0,
 				1.0,
 				1.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				-6.821294784545898,
+				1.829451560974121,
+				-3.4030888080596924
+			],
+			"rot": [
+				-0.0,
+				0.0,
+				0.0
+			],
+			"scl": [
+				0.9999998211860657,
+				1.0,
+				0.9999998211860657
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				7.953896522521973,
+				3.605653762817383,
+				-16.729175567626953
+			],
+			"rot": [
+				6.159430503845215,
+				-38.675575256347656,
+				0.0
+			],
+			"scl": [
+				0.9999499320983887,
+				0.9998598098754883,
+				0.9998568296432495
 			]
 		}
 	]
