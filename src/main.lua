@@ -1,4 +1,5 @@
 hg = require("harfang")
+say = require("say")
 require("config_gui")
 local automaton_controller_lib = require("automaton_controller")
 
@@ -61,6 +62,16 @@ local COMPOSITING_UI_FIELDS = {
 	{section = "Variation", key = "COMPOSITING_JITTER_INTERVAL_MIN", label = "Jitter interval min", min = 0.01, max = 2.0, format = "%.3f"},
 	{section = "Variation", key = "COMPOSITING_JITTER_INTERVAL_MAX", label = "Jitter interval max", min = 0.01, max = 2.0, format = "%.3f"}
 }
+
+local function say_helper(str)
+	local blob, info = say.synthesize(str, {
+		lang = "en",
+		format = "raw"
+	})
+
+	print("say_helper() : " .. info.format, info.sample_count, info.duration_seconds)
+	print("say_helper() : " .. blob:GetSize())
+end
 
 math.randomseed(os.time() + math.floor((os.clock() * 1000000) % 1000000))
 
@@ -610,6 +621,9 @@ local function main(cmd_arg)
 
 	hg.InputInit()
 	hg.WindowSystemInit()
+	hg.AudioInit()
+
+	say_helper("Shadow Party like it's 2026!")
 
 	if cmd_arg[1] == "--launcher" then
 		hg.AddAssetsFolder("data/assets_compiled")
