@@ -11,6 +11,7 @@ The controller combines several orthogonal subsystems:
 - independent arm lock and unlock blending
 - object grabbing and releasing per hand
 - persistent head and neck look-at
+- persistent scripted camera selection and tracking
 - a blocking action sequence runner
 
 The goal is staged character choreography.
@@ -162,6 +163,33 @@ Current angular limits:
 
 The rest pose is captured from the automaton rig when the controller is created.
 
+### Camera
+
+```lua
+ctrl:SetCurrentCamera(camera_name, options)
+```
+
+Behavior:
+
+- selects a scene camera node and calls `scene:SetCurrentCamera()` immediately
+- `camera_name` is the node carrying the Camera component, for example `"Camera"` or `"Camera2"`
+- camera behavior is persistent until another camera command overrides it
+- the action sequence command is non-blocking and completes immediately
+- optional `FOV`/`fov` is expressed in degrees and blends over `1.0` second
+- optional `tracking` keeps the camera position unchanged and smooths only its rotation toward a target node
+- optional `steady_cam` follows a target node with latency, at a configurable horizontal distance
+- optional `offset` is a fixed world-space vector added to the tracked target position
+- `tracking` and `steady_cam` are mutually exclusive in one command
+
+Steady-cam angle convention:
+
+- `angle = 0` places the camera in front of the target along its velocity vector
+- `angle = 180` places the camera behind the target
+- `angle = 90` places the camera on the target's right side
+- `angle = -90` places the camera on the target's left side
+
+`steady_cam` waits until the target has moved enough to infer a velocity direction. Until then, the camera does not change its position from the velocity-relative rule, but it can already rotate toward the target.
+
 ### Sequence Runner
 
 ```lua
@@ -196,6 +224,7 @@ Canonical action types:
 - `release`
 - `look_at`
 - `clear_look_at`
+- `camera`
 
 The action type normalizer also accepts spaces and hyphens.
 For example, `lock arm` and `lock-arm` will be interpreted as `lock_arm`.
@@ -252,6 +281,28 @@ For example, `lock arm` and `lock-arm` will be interpreted as `lock_arm`.
 {type = "clear_look_at"}
 ```
 
+`camera`
+
+```lua
+{type = "camera", camera = "Camera2"}
+{type = "camera", camera = "Camera2", FOV = 45}
+{type = "camera", camera = "Camera2", tracking = "automaton-rig-tpose"}
+{type = "camera", camera = "Camera2", tracking = {target = "automaton-rig-tpose", latency = 0.35}}
+{type = "camera", camera = "Camera2", tracking = {target = "automaton-rig-tpose", offset = {0.0, 1.4, 0.0}}}
+{type = "camera", camera = "Camera2", steady_cam = {target = "automaton-rig-tpose", distance = 5.0, angle = 180}}
+{type = "camera", camera = "Camera2", steady_cam = {target = "automaton-rig-tpose", distance = 5.0, angle = 90, offset = hg.Vec3(0.0, 1.2, 0.0)}}
+```
+
+Aliases:
+
+- `set_camera` is accepted as an action type
+- `camera`, `camera_node`, `node`, or `name` can identify the camera node
+- `fov` and `FOV` are both accepted
+- `track` is accepted as an alias for `tracking`
+- `steady`, `steadycam`, `steady_cam`, `steady cam`, and `steady-cam` are accepted for steady-cam mode
+- `offset` accepts `hg.Vec3(x, y, z)`, `{x, y, z}`, or `{x = x, y = y, z = z}`
+- top-level `offset` is accepted when `tracking`/`steady_cam` is just a target string
+
 `side` accepts `left` or `right`.
 The implementation lowercases the input, so `Left` and `RIGHT` are also accepted.
 
@@ -265,6 +316,7 @@ The implementation lowercases the input, so `Left` and `RIGHT` are also accepted
 - `release`: completes immediately after the reparenting operation
 - `look_at`: completes when the look blend reaches `1.0`
 - `clear_look_at`: completes when the look blend reaches `0.0`
+- `camera`: completes immediately after changing the camera state
 
 ## Movement and Rotation Semantics
 
@@ -305,6 +357,7 @@ Subsystems are persistent by design.
 - a hand lock persists until that hand is unlocked
 - a held object persists until that hand releases it
 - look-at persists until `ClearLookAt()` is called
+- camera selection, camera tracking mode, and steady-cam mode persist until another camera command overrides them
 
 This is important when building sequences.
 You do not need to repeat persistent commands every frame.
@@ -349,6 +402,7 @@ end
 
 ```lua
 local actions = {
+	{type = "camera", camera = "Camera2", steady_cam = {target = "automaton-rig-tpose", distance = 5.0, angle = 180}, FOV = 45},
 	{type = "move", start = "path_A", target = "watering_can_pickup"},
 	{type = "rotate", target = "watering_can_pickup"},
 	{type = "grab", side = "right", target = "watering_can"},
@@ -395,6 +449,9 @@ Current fields:
 - `held_right`
 - `look_target`
 - `look_blend`
+- `camera`
+- `camera_mode`
+- `camera_target`
 - `current_action_type`
 - `action_index`
 
@@ -422,4 +479,3 @@ This controller is intentionally simple.
 - prefer stable, named anchors over hardcoded offsets in Lua
 
 The controller works best when the scene provides intentional staging nodes.
-

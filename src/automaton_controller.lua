@@ -192,6 +192,69 @@ local function normalize_side(side_name)
 	return nil
 end
 
+local function read_number_field(tbl, keys, label)
+	if type(tbl) ~= "table" then
+		return nil
+	end
+
+	for _, key in ipairs(keys) do
+		local value = tbl[key]
+		if value ~= nil then
+			if type(value) ~= "number" then
+				error(('AutomatonController: %s must be a number'):format(label))
+			end
+
+			return value
+		end
+	end
+
+	return nil
+end
+
+local function read_vec3(value, label)
+	if value == nil then
+		return nil
+	end
+
+	local value_type = type(value)
+	local x
+	local y
+	local z
+
+	if value_type == "table" then
+		x = value.x
+		y = value.y
+		z = value.z
+
+		if x == nil then
+			x = value[1]
+		end
+		if y == nil then
+			y = value[2]
+		end
+		if z == nil then
+			z = value[3]
+		end
+	else
+		local ok
+		ok, x, y, z = pcall(function()
+			return value.x, value.y, value.z
+		end)
+
+		if not ok then
+			x = nil
+			y = nil
+			z = nil
+		end
+	end
+
+	if type(x) ~= "number" or type(y) ~= "number" or type(z) ~= "number" then
+		error(('AutomatonController: %s must be a Vec3 or a table with x/y/z values'):format(label))
+	end
+
+	return hg.Vec3(x, y, z)
+end
+
 local function shortest_angle_rad(current, target)
 	local delta = math.fmod(target - current + math.pi, math.pi * 2.0)
 	if delta < 0.0 then
@@ -297,6 +360,37 @@ end
 
 local function lerp_vec3(a, b, t)
 	return hg.Lerp(a, b, t)
+end
+
+local function smooth_step_alpha(dt, latency)
+	if latency <= 0.0 then
+		return 1.0
+	end
+
+	return clamp(1.0 - math.exp(-dt / latency), 0.0, 1.0)
+end
+
+local function smooth_euler(current, target, alpha)
+	return hg.Vec3(
+		current.x + shortest_angle_rad(current.x, target.x) * alpha,
+		current.y + shortest_angle_rad(current.y, target.y) * alpha,
+		current.z + shortest_angle_rad(current.z, target.z) * alpha
+	)
+end
+
+local function look_rotation(from_pos, target_pos, fallback_rot)
+	local to_target = target_pos - from_pos
+	if hg.Len(to_target) <= 0.0001 then
+		return fallback_rot
+	end
+
+	return hg.ToEuler(hg.Mat3LookAt(safe_normalize(to_target, WORLD_FRONT), WORLD_UP))
+end
+
+local function set_world_pos_rot(node, position, rotation)
+	local transform = node:GetTransform()
+	local world = transform:GetWorld()
+	transform:SetWorld(hg.TransformationMat4(position, rotation, hg.GetS(world)))
 end
 
 local function scale_vec3(value, scalar)
@@ -587,6 +681,10 @@ function Controller:ClearLookAt()
 	self:_clear_look_at_target()
 end
 
+function Controller:SetCurrentCamera(camera_name, options)
+	self:_set_current_camera(camera_name, options or {})
+end
+
 function Controller:RunActionSequence(actions)
 	if type(actions) ~= "table" then
 		error("AutomatonController: RunActionSequence expects a Lua table")
@@ -651,6 +749,337 @@ function Controller:_update_look_at_blend(dt)
 		look_state.target_node = nil
 		look_state.yaw = 0.0
 		look_state.pitch = 0.0
+	end
+end
+
+function Controller:_resolve_camera_node(camera_name)
+	local node = self:_resolve_node_ref(camera_name)
+	local transform = node:GetTransform()
+	if not transform:IsValid() then
+		error(('AutomatonController: camera node "%s" has no valid Transform component'):format(camera_name))
+	end
+
+	local camera = node:GetCamera()
+	if not camera:IsValid() then
+		error(('AutomatonController: node "%s" has no valid Camera component'):format(camera_name))
+	end
+
+	return node, camera
+end
+
+function Controller:_resolve_camera_target_node()
+	local camera_state = self.camera_state
+	if camera_state.target_name == nil then
+		return nil
+	end
+
+	if camera_state.target_node ~= nil and camera_state.target_node:IsValid() and camera_state.target_node:GetTransform():IsValid() then
+		return camera_state.target_node
+	end
+
+	local ok, node = pcall(function()
+		return self:_resolve_node_ref(camera_state.target_name)
+	end)
+
+	if ok and node ~= nil and node:IsValid() and node:GetTransform():IsValid() then
+		camera_state.target_node = node
+		return node
+	end
+
+	camera_state.target_node = nil
+	return nil
+end
+
+function Controller:_extract_camera_target(option, fallback_target, option_name)
+	if type(option) == "string" then
+		return option
+	elseif type(option) == "table" then
+		return option.target or option.node or option.name or option[1]
+	elseif option == true then
+		return fallback_target
+	elseif option == nil or option == false then
+		return nil
+	end
+
+	error(('AutomatonController: %s must be a node name or an option table'):format(option_name))
+end
+
+function Controller:_read_camera_option_number(option, keys, action, action_keys, default_value, label)
+	local value = read_number_field(option, keys, label)
+	if value == nil then
+		value = read_number_field(action, action_keys, label)
+	end
+	if value == nil then
+		return default_value
+	end
+
+	return value
+end
+
+function Controller:_read_camera_offset(option, action)
+	local offset_value = nil
+
+	if type(option) == "table" then
+		offset_value = option.offset
+	end
+
+	if offset_value == nil then
+		offset_value = action.offset
+	end
+
+	return read_vec3(offset_value, "camera offset") or hg.Vec3(0.0, 0.0, 0.0)
+end
+
+function Controller:_configure_camera_fov(camera, options)
+	local fov_deg = read_number_field(options, {"fov", "FOV"}, "camera FOV")
+	local camera_state = self.camera_state
+
+	if fov_deg == nil then
+		camera_state.fov_active = false
+		return
+	end
+
+	if fov_deg <= 0.0 or fov_deg >= 179.0 then
+		error("AutomatonController: camera FOV must be between 0 and 179 degrees")
+	end
+
+	camera_state.fov_active = true
+	camera_state.fov_elapsed = 0.0
+	camera_state.fov_duration = self.params.camera_fov_blend_duration
+	camera_state.fov_start = camera:GetFov()
+	camera_state.fov_target = hg.Deg(fov_deg)
+end
+
+function Controller:_set_current_camera(camera_name, options)
+	if type(camera_name) ~= "string" or camera_name == "" then
+		error("AutomatonController: camera command requires a non-empty camera node name")
+	end
+
+	local camera_node, camera = self:_resolve_camera_node(camera_name)
+	local tracking_option = options.tracking or options.track
+	local steady_option = options.steady_cam or options.steadycam or options.steady or options["steady cam"] or options["steady-cam"]
+	local has_tracking = tracking_option ~= nil and tracking_option ~= false
+	local has_steady = steady_option ~= nil and steady_option ~= false
+
+	if has_tracking and has_steady then
+		error("AutomatonController: camera command cannot use tracking and steady_cam at the same time")
+	end
+
+	self.scene:SetCurrentCamera(camera_node)
+
+	local camera_state = self.camera_state
+	camera_state.node_name = camera_name
+	camera_state.node = camera_node
+	camera_state.mode = "static"
+	camera_state.target_name = nil
+	camera_state.target_node = nil
+	camera_state.previous_target_pos = nil
+	camera_state.velocity_dir = nil
+	camera_state.target_offset = hg.Vec3(0.0, 0.0, 0.0)
+	camera_state.steady_height_offset = 0.0
+	camera_state.tracking_latency = self.params.camera_tracking_latency
+	camera_state.steady_position_latency = self.params.camera_steady_position_latency
+	camera_state.steady_rotation_latency = self.params.camera_steady_rotation_latency
+	camera_state.steady_distance = self.params.camera_steady_distance
+	camera_state.steady_angle = self.params.camera_steady_angle
+
+	self:_configure_camera_fov(camera, options)
+
+	if has_tracking then
+		local target_name = self:_extract_camera_target(tracking_option, options.target, "camera tracking")
+		if type(target_name) ~= "string" or target_name == "" then
+			error("AutomatonController: camera tracking requires a non-empty target node name")
+		end
+
+		camera_state.mode = "tracking"
+		camera_state.target_name = target_name
+		camera_state.target_node = self:_resolve_node_ref(target_name)
+		camera_state.target_offset = self:_read_camera_offset(tracking_option, options)
+		if not camera_state.target_node:GetTransform():IsValid() then
+			error(('AutomatonController: camera tracking target "%s" has no valid Transform component'):format(target_name))
+		end
+		camera_state.tracking_latency = self:_read_camera_option_number(
+			tracking_option,
+			{"latency", "rotation_latency"},
+			options,
+			{"tracking_latency", "latency"},
+			self.params.camera_tracking_latency,
+			"camera tracking latency"
+		)
+		if camera_state.tracking_latency < 0.0 then
+			error("AutomatonController: camera tracking latency must be greater than or equal to 0")
+		end
+	elseif has_steady then
+		local target_name = self:_extract_camera_target(steady_option, options.target, "camera steady_cam")
+		if type(target_name) ~= "string" or target_name == "" then
+			error("AutomatonController: camera steady_cam requires a non-empty target node name")
+		end
+
+		local target_node = self:_resolve_node_ref(target_name)
+		if not target_node:GetTransform():IsValid() then
+			error(('AutomatonController: camera steady_cam target "%s" has no valid Transform component'):format(target_name))
+		end
+		camera_state.target_offset = self:_read_camera_offset(steady_option, options)
+		local target_pos = get_world_position(target_node) + camera_state.target_offset
+		local camera_pos = get_world_position(camera_node)
+
+		camera_state.mode = "steady_cam"
+		camera_state.target_name = target_name
+		camera_state.target_node = target_node
+		camera_state.previous_target_pos = copy_vec3(target_pos)
+		camera_state.velocity_dir = nil
+		camera_state.steady_height_offset = camera_pos.y - target_pos.y
+		camera_state.steady_distance = self:_read_camera_option_number(
+			steady_option,
+			{"distance"},
+			options,
+			{"distance"},
+			self.params.camera_steady_distance,
+			"camera steady_cam distance"
+		)
+		if camera_state.steady_distance <= 0.0 then
+			error("AutomatonController: camera steady_cam distance must be greater than 0")
+		end
+		camera_state.steady_angle = hg.Deg(self:_read_camera_option_number(
+			steady_option,
+			{"angle", "angle_deg"},
+			options,
+			{"angle", "angle_deg"},
+			math.deg(self.params.camera_steady_angle),
+			"camera steady_cam angle"
+		))
+		camera_state.steady_position_latency = self:_read_camera_option_number(
+			steady_option,
+			{"latency", "position_latency"},
+			options,
+			{"steady_latency", "position_latency", "latency"},
+			self.params.camera_steady_position_latency,
+			"camera steady_cam latency"
+		)
+		if camera_state.steady_position_latency < 0.0 then
+			error("AutomatonController: camera steady_cam latency must be greater than or equal to 0")
+		end
+		camera_state.steady_rotation_latency = self:_read_camera_option_number(
+			steady_option,
+			{"rotation_latency"},
+			options,
+			{"rotation_latency"},
+			self.params.camera_steady_rotation_latency,
+			"camera steady_cam rotation latency"
+		)
+		if camera_state.steady_rotation_latency < 0.0 then
+			error("AutomatonController: camera steady_cam rotation latency must be greater than or equal to 0")
+		end
+	end
+end
+
+function Controller:_run_camera_action(action)
+	local camera_name = action.camera or action.camera_node or action.node or action.name
+	if camera_name == nil and action.tracking == nil and action.track == nil and action.steady_cam == nil and action.steadycam == nil and action.steady == nil and action["steady cam"] == nil and action["steady-cam"] == nil then
+		camera_name = action.target
+	end
+
+	self:SetCurrentCamera(camera_name, action)
+end
+
+function Controller:_update_camera_fov(dt)
+	local camera_state = self.camera_state
+	if not camera_state.fov_active or camera_state.node == nil or not camera_state.node:IsValid() then
+		return
+	end
+
+	local camera = camera_state.node:GetCamera()
+	if not camera:IsValid() then
+		camera_state.fov_active = false
+		return
+	end
+
+	camera_state.fov_elapsed = math.min(camera_state.fov_elapsed + dt, camera_state.fov_duration)
+	local blend = camera_state.fov_duration > 0.0 and (camera_state.fov_elapsed / camera_state.fov_duration) or 1.0
+	camera:SetFov(camera_state.fov_start + (camera_state.fov_target - camera_state.fov_start) * blend)
+
+	if blend >= 1.0 then
+		camera_state.fov_active = false
+	end
+end
+
+function Controller:_update_camera_tracking(dt, target_node)
+	local camera_state = self.camera_state
+	local camera_node = camera_state.node
+	if camera_node == nil or not camera_node:IsValid() then
+		return
+	end
+
+	local camera_pos = get_world_position(camera_node)
+	local camera_rot = get_world_rotation(camera_node)
+	local target_pos = get_world_position(target_node) + camera_state.target_offset
+	local desired_rot = look_rotation(camera_pos, target_pos, camera_rot)
+	local alpha = smooth_step_alpha(dt, camera_state.tracking_latency)
+	set_world_pos_rot(camera_node, camera_pos, smooth_euler(camera_rot, desired_rot, alpha))
+end
+
+function Controller:_update_camera_steady(dt, target_node)
+	local camera_state = self.camera_state
+	local camera_node = camera_state.node
+	if camera_node == nil or not camera_node:IsValid() then
+		return
+	end
+
+	local target_pos = get_world_position(target_node) + camera_state.target_offset
+	if camera_state.previous_target_pos == nil then
+		camera_state.previous_target_pos = copy_vec3(target_pos)
+	end
+
+	local displacement = flatten_xz(target_pos - camera_state.previous_target_pos)
+	if hg.Len(displacement) >= self.params.camera_velocity_min_distance then
+		local velocity_dir = safe_normalize(displacement, camera_state.velocity_dir or WORLD_FRONT)
+		if camera_state.velocity_dir == nil then
+			camera_state.velocity_dir = velocity_dir
+		else
+			local velocity_alpha = smooth_step_alpha(dt, self.params.camera_velocity_latency)
+			camera_state.velocity_dir = safe_normalize(lerp_vec3(camera_state.velocity_dir, velocity_dir, velocity_alpha), velocity_dir)
+		end
+
+		camera_state.previous_target_pos = copy_vec3(target_pos)
+	end
+
+	local camera_pos = get_world_position(camera_node)
+	local desired_pos = camera_pos
+
+	if camera_state.velocity_dir ~= nil then
+		local offset_dir = rotate_xz(camera_state.velocity_dir, camera_state.steady_angle)
+		desired_pos = target_pos + offset_dir * camera_state.steady_distance
+		desired_pos.y = target_pos.y + camera_state.steady_height_offset
+		camera_pos = lerp_vec3(camera_pos, desired_pos, smooth_step_alpha(dt, camera_state.steady_position_latency))
+	end
+
+	local camera_rot = get_world_rotation(camera_node)
+	local desired_rot = look_rotation(camera_pos, target_pos, camera_rot)
+	local rotation_alpha = smooth_step_alpha(dt, camera_state.steady_rotation_latency)
+	set_world_pos_rot(camera_node, camera_pos, smooth_euler(camera_rot, desired_rot, rotation_alpha))
+end
+
+function Controller:_update_camera_state(dt)
+	local camera_state = self.camera_state
+	if camera_state.node == nil then
+		return
+	end
+
+	self:_update_camera_fov(dt)
+
+	if camera_state.mode == "static" then
+		return
+	end
+
+	local target_node = self:_resolve_camera_target_node()
+	if target_node == nil then
+		return
+	end
+
+	if camera_state.mode == "tracking" then
+		self:_update_camera_tracking(dt, target_node)
+	elseif camera_state.mode == "steady_cam" then
+		self:_update_camera_steady(dt, target_node)
 	end
 end
 
@@ -873,6 +1302,8 @@ function Controller:_run_action(action)
 		self:LookAtNode(action.target)
 	elseif action_type == "clear_look_at" then
 		self:ClearLookAt()
+	elseif action_type == "camera" or action_type == "set_camera" then
+		self:_run_camera_action(action)
 	else
 		error(('AutomatonController: unsupported action type "%s"'):format(tostring(action.type)))
 	end
@@ -891,7 +1322,7 @@ function Controller:_is_action_complete(action)
 	elseif action_type == "unlock_arm" then
 		local side = normalize_side(action.side)
 		return side ~= nil and self.hand_locks[side].blend <= 0.0
-	elseif action_type == "grab" or action_type == "release" then
+	elseif action_type == "grab" or action_type == "release" or action_type == "camera" or action_type == "set_camera" then
 		return true
 	elseif action_type == "look_at" then
 		return self.look_at_state.blend >= 1.0
@@ -1439,6 +1870,7 @@ function Controller:Update(dt)
 	self:_apply_arm_pose("right")
 	self:_apply_look_at_pose()
 	self:_apply_grabbed_objects()
+	self:_update_camera_state(dt)
 	self:_update_action_runner()
 end
 
@@ -1473,6 +1905,9 @@ function Controller:GetDebugState()
 		held_right = self.held_objects.right.node_ref or "-",
 		look_target = self.look_at_state.target_name or "-",
 		look_blend = self.look_at_state.blend,
+		camera = self.camera_state.node_name or "-",
+		camera_mode = self.camera_state.mode,
+		camera_target = self.camera_state.target_name or "-",
 		current_action_type = self.action_runner.current_action_type or "-",
 		action_index = self.action_runner.current_action_index
 	}
@@ -1597,6 +2032,14 @@ local function create_controller(scene, instance_node_name)
 			look_at_yaw_limit = hg.Deg(70.0),
 			look_at_pitch_up_limit = hg.Deg(35.0),
 			look_at_pitch_down_limit = hg.Deg(-45.0),
+			camera_tracking_latency = 0.28,
+			camera_fov_blend_duration = 1.0,
+			camera_steady_distance = 4.0,
+			camera_steady_angle = hg.Deg(180.0),
+			camera_steady_position_latency = 0.45,
+			camera_steady_rotation_latency = 0.32,
+			camera_velocity_latency = 0.18,
+			camera_velocity_min_distance = 0.03,
 			arm_elbow_forward_bias = 0.35,
 			arm_elbow_outward_bias = 0.85
 		},
@@ -1619,6 +2062,27 @@ local function create_controller(scene, instance_node_name)
 			target_node = nil,
 			yaw = 0.0,
 			pitch = 0.0
+		},
+		camera_state = {
+			node_name = nil,
+			node = nil,
+			mode = "static",
+			target_name = nil,
+			target_node = nil,
+			tracking_latency = 0.0,
+			steady_distance = 0.0,
+			steady_angle = 0.0,
+			steady_position_latency = 0.0,
+			steady_rotation_latency = 0.0,
+			steady_height_offset = 0.0,
+			target_offset = hg.Vec3(0.0, 0.0, 0.0),
+			previous_target_pos = nil,
+			velocity_dir = nil,
+			fov_active = false,
+			fov_elapsed = 0.0,
+			fov_duration = 1.0,
+			fov_start = 0.0,
+			fov_target = 0.0
 		},
 		action_runner = {
 			running = false,

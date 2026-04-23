@@ -1,7 +1,7 @@
 {
 	"cameras": [
 		{
-			"fov": 0.5201046466827393,
+			"fov": 1.0471975803375244,
 			"ortho": false,
 			"size": 1.0,
 			"zrange": {
@@ -481,7 +481,7 @@
 				4294967295
 			],
 			"disabled": false,
-			"idx": 73,
+			"idx": 25,
 			"instance": 2,
 			"name": "telephone_speaker"
 		},
@@ -494,7 +494,7 @@
 				4294967295
 			],
 			"disabled": false,
-			"idx": 76,
+			"idx": 26,
 			"name": "path_4"
 		},
 		{
@@ -506,8 +506,344 @@
 				4294967295
 			],
 			"disabled": false,
-			"idx": 77,
+			"idx": 27,
 			"name": "path_3"
+		},
+		{
+			"components": [
+				28,
+				4294967295,
+				15,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 77,
+			"name": "grass_fern_5_1"
+		},
+		{
+			"components": [
+				29,
+				4294967295,
+				16,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 78,
+			"name": "grass_fern_5_1"
+		},
+		{
+			"components": [
+				30,
+				4294967295,
+				17,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 79,
+			"name": "grass_fern_5_1"
+		},
+		{
+			"components": [
+				31,
+				4294967295,
+				18,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 80,
+			"name": "grass_fern_5_1"
+		},
+		{
+			"components": [
+				32,
+				4294967295,
+				19,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 81,
+			"name": "grass_fern_5_1"
+		},
+		{
+			"components": [
+				55,
+				4294967295,
+				42,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 82,
+			"name": "grass_terrain_grass_coverd"
+		},
+		{
+			"components": [
+				33,
+				4294967295,
+				20,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 83,
+			"name": "grass_terrain_grass_coverd"
+		},
+		{
+			"components": [
+				34,
+				4294967295,
+				21,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 84,
+			"name": "grass_terrain_grass_coverd"
+		},
+		{
+			"components": [
+				35,
+				4294967295,
+				22,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 85,
+			"name": "grass_fern_5_1"
+		},
+		{
+			"components": [
+				36,
+				4294967295,
+				23,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 86,
+			"name": "grass_fern_5_1"
+		},
+		{
+			"components": [
+				37,
+				4294967295,
+				24,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 87,
+			"name": "grass_fern_5_1"
+		},
+		{
+			"components": [
+				38,
+				4294967295,
+				25,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 88,
+			"name": "grass_fern_5_1"
+		},
+		{
+			"components": [
+				39,
+				4294967295,
+				26,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 89,
+			"name": "grass_fern_5_1"
+		},
+		{
+			"components": [
+				40,
+				4294967295,
+				27,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 90,
+			"name": "grass_terrain_grass_coverd"
+		},
+		{
+			"components": [
+				42,
+				4294967295,
+				29,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 91,
+			"name": "grass_terrain_grass_coverd"
+		},
+		{
+			"components": [
+				41,
+				4294967295,
+				28,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 92,
+			"name": "grass_terrain_grass_coverd"
+		},
+		{
+			"components": [
+				43,
+				4294967295,
+				30,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 93,
+			"name": "grass_fern_5_1"
+		},
+		{
+			"components": [
+				44,
+				4294967295,
+				31,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 94,
+			"name": "grass_fern_5_1"
+		},
+		{
+			"components": [
+				45,
+				4294967295,
+				32,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 95,
+			"name": "grass_terrain_grass_coverd"
+		},
+		{
+			"components": [
+				46,
+				4294967295,
+				33,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 96,
+			"name": "grass_terrain_grass_coverd"
+		},
+		{
+			"components": [
+				47,
+				4294967295,
+				34,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 97,
+			"name": "grass_terrain_grass_coverd"
+		},
+		{
+			"components": [
+				48,
+				4294967295,
+				35,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 98,
+			"name": "grass_fern_5_1"
+		},
+		{
+			"components": [
+				49,
+				4294967295,
+				36,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 99,
+			"name": "grass_fern_5_1"
+		},
+		{
+			"components": [
+				50,
+				4294967295,
+				37,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 100,
+			"name": "grass_terrain_grass_coverd"
+		},
+		{
+			"components": [
+				51,
+				4294967295,
+				38,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 101,
+			"name": "grass_terrain_grass_coverd"
+		},
+		{
+			"components": [
+				52,
+				4294967295,
+				39,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 102,
+			"name": "grass_terrain_grass_coverd"
+		},
+		{
+			"components": [
+				53,
+				4294967295,
+				40,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 103,
+			"name": "grass_terrain_grass_coverd"
+		},
+		{
+			"components": [
+				54,
+				4294967295,
+				41,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 104,
+			"name": "grass_terrain_grass_coverd"
 		}
 	],
 	"objects": [
@@ -1494,6 +1830,1742 @@
 				}
 			],
 			"name": "props/desert_house/walls_59.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_fern_5_1_48.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_fern_5_1_48.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_fern_5_1_48.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_fern_5_1_48.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_fern_5_1_48.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_terrain_grass_coverd_60.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_terrain_grass_coverd_60.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_fern_5_1_48.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_fern_5_1_48.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_fern_5_1_48.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_fern_5_1_48.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_fern_5_1_48.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_terrain_grass_coverd_60.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_terrain_grass_coverd_60.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_terrain_grass_coverd_60.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_fern_5_1_48.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_fern_5_1_48.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_terrain_grass_coverd_60.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_terrain_grass_coverd_60.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_terrain_grass_coverd_60.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_fern_5_1_48.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_fern_5_1_48.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_terrain_grass_coverd_60.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_terrain_grass_coverd_60.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_terrain_grass_coverd_60.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_terrain_grass_coverd_60.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_terrain_grass_coverd_60.geo"
+		},
+		{
+			"bones": [],
+			"material_infos": [
+				{
+					"name": "grass_material"
+				}
+			],
+			"materials": [
+				{
+					"blend_mode": "opaque",
+					"depth_test": "less",
+					"face_culling": "cw",
+					"flags": [],
+					"program": "core/shader/pbr.hps",
+					"textures": [
+						{
+							"name": "uBaseOpacityMap",
+							"path": "props/grass/grass_color_pallets.png",
+							"stage": 0
+						}
+					],
+					"values": [
+						{
+							"name": "uBaseOpacityColor",
+							"type": "vec4",
+							"value": [
+								0.5,
+								0.5,
+								0.5,
+								1.0
+							]
+						},
+						{
+							"name": "uOcclusionRoughnessMetalnessColor",
+							"type": "vec4",
+							"value": [
+								1.0,
+								0.5,
+								0.25,
+								0.0
+							]
+						},
+						{
+							"name": "uSelfColor",
+							"type": "vec4",
+							"value": [
+								0.0,
+								0.0,
+								0.0,
+								-1.0
+							]
+						}
+					],
+					"write_a": true,
+					"write_b": true,
+					"write_g": true,
+					"write_r": true,
+					"write_z": true
+				}
+			],
+			"name": "props/grass/grass_terrain_grass_coverd_60.geo"
 		}
 	],
 	"transforms": [
@@ -1685,7 +3757,7 @@
 				2.7923717498779297
 			],
 			"rot": [
-				89.99998474121094,
+				89.9999771118164,
 				0.0,
 				0.0
 			],
@@ -1703,7 +3775,7 @@
 				2.711693286895752
 			],
 			"rot": [
-				89.99998474121094,
+				89.9999771118164,
 				0.0,
 				0.0
 			],
@@ -1793,7 +3865,7 @@
 				-1.027187863655854e-07
 			],
 			"rot": [
-				-26.256074905395508,
+				-26.256072998046875,
 				152.33575439453125,
 				-166.943603515625
 			],
@@ -1830,7 +3902,7 @@
 			],
 			"rot": [
 				7.591828346252441,
-				-38.531856536865234,
+				-38.53185272216797,
 				0.0
 			],
 			"scl": [
@@ -1883,8 +3955,8 @@
 				-16.729175567626953
 			],
 			"rot": [
-				6.159430027008057,
-				-38.67557144165039,
+				6.159429550170898,
+				-38.675567626953125,
 				0.0
 			],
 			"scl": [
@@ -1999,6 +4071,510 @@
 				1.0,
 				1.0,
 				1.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				12.663345336914063,
+				0.0,
+				6.907290458679199
+			],
+			"rot": [
+				-7.0167078561561656e-15,
+				0.0,
+				0.0
+			],
+			"scl": [
+				1.0,
+				1.0,
+				1.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				11.102789878845215,
+				1.9073486328125e-06,
+				4.706604957580566
+			],
+			"rot": [
+				-7.0167078561561656e-15,
+				0.0,
+				0.0
+			],
+			"scl": [
+				1.2000000476837158,
+				1.2000000476837158,
+				1.2000000476837158
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				10.7413969039917,
+				1.9073486328125e-06,
+				2.588534355163574
+			],
+			"rot": [
+				-7.0167078561561656e-15,
+				0.0,
+				0.0
+			],
+			"scl": [
+				1.0,
+				1.0,
+				1.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				13.1216459274292,
+				1.9073486328125e-06,
+				5.631194114685059
+			],
+			"rot": [
+				-7.0167078561561656e-15,
+				0.0,
+				0.0
+			],
+			"scl": [
+				1.2999999523162842,
+				1.2999999523162842,
+				1.2999999523162842
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				12.93002986907959,
+				1.9073486328125e-06,
+				1.1130475997924805
+			],
+			"rot": [
+				-7.0167078561561656e-15,
+				0.0,
+				0.0
+			],
+			"scl": [
+				1.100000023841858,
+				1.100000023841858,
+				1.100000023841858
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				11.44083023071289,
+				-7.62939453125e-06,
+				6.010129928588867
+			],
+			"rot": [
+				-5.910295632760706e-15,
+				-32.61434555053711,
+				3.781876748614257e-15
+			],
+			"scl": [
+				0.800000011920929,
+				0.800000011920929,
+				0.800000011920929
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				12.197689056396484,
+				-7.62939453125e-06,
+				3.8824329376220703
+			],
+			"rot": [
+				-7.0167078561561656e-15,
+				0.0,
+				0.0
+			],
+			"scl": [
+				1.0,
+				1.0,
+				1.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				9.715765953063965,
+				-1.9073486328125e-06,
+				-6.877504348754883
+			],
+			"rot": [
+				-7.0167078561561656e-15,
+				0.0,
+				0.0
+			],
+			"scl": [
+				1.0,
+				1.0,
+				1.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				10.77621078491211,
+				0.0,
+				-6.505017280578613
+			],
+			"rot": [
+				-7.0167078561561656e-15,
+				0.0,
+				0.0
+			],
+			"scl": [
+				1.2000000476837158,
+				1.2000000476837158,
+				1.2000000476837158
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				11.075210571289063,
+				0.0,
+				-8.490975379943848
+			],
+			"rot": [
+				-7.0167078561561656e-15,
+				0.0,
+				0.0
+			],
+			"scl": [
+				1.0,
+				1.0,
+				1.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				12.795066833496094,
+				0.0,
+				-5.580428123474121
+			],
+			"rot": [
+				-7.0167078561561656e-15,
+				0.0,
+				0.0
+			],
+			"scl": [
+				1.2999999523162842,
+				1.2999999523162842,
+				1.2999999523162842
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				11.277881622314453,
+				0.0,
+				-4.840453147888184
+			],
+			"rot": [
+				-7.0167078561561656e-15,
+				0.0,
+				0.0
+			],
+			"scl": [
+				1.100000023841858,
+				1.100000023841858,
+				1.100000023841858
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				11.714978218078613,
+				-9.5367431640625e-06,
+				-5.872527122497559
+			],
+			"rot": [
+				-5.9102952092442325e-15,
+				-32.614356994628906,
+				3.781877595647205e-15
+			],
+			"scl": [
+				0.7999998331069946,
+				0.800000011920929,
+				0.7999998331069946
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				11.714653015136719,
+				-9.5367431640625e-06,
+				-7.318206787109375
+			],
+			"rot": [
+				-7.0167078561561656e-15,
+				0.0,
+				0.0
+			],
+			"scl": [
+				1.0,
+				1.0,
+				1.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				9.212723731994629,
+				-9.5367431640625e-06,
+				-8.470612525939941
+			],
+			"rot": [
+				-5.862005860921265e-15,
+				33.33876037597656,
+				-3.856299180942388e-15
+			],
+			"scl": [
+				0.8000001907348633,
+				0.800000011920929,
+				0.8000001907348633
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				13.336348533630371,
+				-2.1457672119140625e-06,
+				-7.592592239379883
+			],
+			"rot": [
+				-7.0167078561561656e-15,
+				0.0,
+				0.0
+			],
+			"scl": [
+				1.0,
+				1.0,
+				1.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				11.072449684143066,
+				1.9073486328125e-06,
+				0.3754434585571289
+			],
+			"rot": [
+				-7.0167078561561656e-15,
+				0.0,
+				0.0
+			],
+			"scl": [
+				1.100000023841858,
+				1.100000023841858,
+				1.100000023841858
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				16.019912719726563,
+				-9.5367431640625e-06,
+				-9.015096664428711
+			],
+			"rot": [
+				-5.862005860921265e-15,
+				33.33876037597656,
+				-3.856299180942388e-15
+			],
+			"scl": [
+				0.8000001907348633,
+				0.800000011920929,
+				0.8000001907348633
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				13.622469902038574,
+				-9.775161743164063e-06,
+				-11.303662300109863
+			],
+			"rot": [
+				-7.0167078561561656e-15,
+				24.999998092651367,
+				0.0
+			],
+			"scl": [
+				0.75,
+				0.75,
+				0.75
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				15.628046035766602,
+				-9.775161743164063e-06,
+				-11.351635932922363
+			],
+			"rot": [
+				-7.0167078561561656e-15,
+				45.0,
+				0.0
+			],
+			"scl": [
+				0.800000011920929,
+				0.800000011920929,
+				0.800000011920929
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				11.57356071472168,
+				-2.1457672119140625e-06,
+				-10.969064712524414
+			],
+			"rot": [
+				-7.0167078561561656e-15,
+				0.0,
+				0.0
+			],
+			"scl": [
+				1.0,
+				1.0,
+				1.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				15.499969482421875,
+				-1.9073486328125e-06,
+				-7.023159027099609
+			],
+			"rot": [
+				-7.0167078561561656e-15,
+				0.0,
+				0.0
+			],
+			"scl": [
+				1.0,
+				1.0,
+				1.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				-11.032647132873535,
+				-1.1444091796875e-05,
+				-10.35020923614502
+			],
+			"rot": [
+				-5.862004590371844e-15,
+				-19.999998092651367,
+				-3.856299180942388e-15
+			],
+			"scl": [
+				0.8000001907348633,
+				0.800000011920929,
+				0.8000001907348633
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				-11.25704574584961,
+				-1.1444091796875e-05,
+				-9.052456855773926
+			],
+			"rot": [
+				-5.862005860921265e-15,
+				33.33876037597656,
+				-3.856299180942388e-15
+			],
+			"scl": [
+				0.6000000238418579,
+				0.6000000238418579,
+				0.6000000238418579
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				-11.490018844604492,
+				-1.1444091796875e-05,
+				-11.717108726501465
+			],
+			"rot": [
+				-5.862005860921265e-15,
+				33.33876037597656,
+				-3.856299180942388e-15
+			],
+			"scl": [
+				0.5,
+				0.5,
+				0.5
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				-11.496794700622559,
+				-1.1444091796875e-05,
+				-6.127984046936035
+			],
+			"rot": [
+				-5.862005437404791e-15,
+				0.0,
+				-3.856299180942388e-15
+			],
+			"scl": [
+				0.5,
+				0.5,
+				0.5
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				-12.947888374328613,
+				-1.1444091796875e-05,
+				-15.814537048339844
+			],
+			"rot": [
+				-5.8620062844377385e-15,
+				14.999998092651367,
+				-3.856299604458862e-15
+			],
+			"scl": [
+				0.4999999403953552,
+				0.5,
+				0.4999999403953552
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				12.00487995147705,
+				-7.62939453125e-06,
+				1.702974796295166
+			],
+			"rot": [
+				-5.8620062844377385e-15,
+				33.33876419067383,
+				-3.856299604458862e-15
+			],
+			"scl": [
+				0.8000000715255737,
+				0.800000011920929,
+				0.8000000715255737
 			]
 		}
 	]
