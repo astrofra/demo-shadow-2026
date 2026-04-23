@@ -1,1 +1,5 @@
 desert_house.fbm
+/src/assets_compiled
+.DS_Store
+*.aaa
+*.editor
