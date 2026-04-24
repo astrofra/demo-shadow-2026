@@ -3736,7 +3736,7 @@
 			],
 			"disabled": false,
 			"idx": 1,
-			"name": "mixamorig:RightLeg"
+			"name": "mixamorig_RightLeg"
 		},
 		{
 			"components": [
@@ -3748,7 +3748,7 @@
 			],
 			"disabled": false,
 			"idx": 2,
-			"name": "mixamorig:RightFoot"
+			"name": "mixamorig_RightFoot"
 		},
 		{
 			"components": [
@@ -3760,7 +3760,7 @@
 			],
 			"disabled": false,
 			"idx": 3,
-			"name": "mixamorig:RightToeBase"
+			"name": "mixamorig_RightToeBase"
 		},
 		{
 			"components": [
@@ -3772,7 +3772,7 @@
 			],
 			"disabled": false,
 			"idx": 4,
-			"name": "mixamorig:RightToe_End"
+			"name": "mixamorig_RightToe_End"
 		},
 		{
 			"components": [
@@ -3784,7 +3784,7 @@
 			],
 			"disabled": false,
 			"idx": 5,
-			"name": "mixamorig:Hips"
+			"name": "mixamorig_Hips"
 		},
 		{
 			"components": [
@@ -3796,7 +3796,7 @@
 			],
 			"disabled": false,
 			"idx": 6,
-			"name": "mixamorig:Spine"
+			"name": "mixamorig_Spine"
 		},
 		{
 			"components": [
@@ -3808,7 +3808,7 @@
 			],
 			"disabled": false,
 			"idx": 7,
-			"name": "mixamorig:Spine1"
+			"name": "mixamorig_Spine1"
 		},
 		{
 			"components": [
@@ -3820,7 +3820,7 @@
 			],
 			"disabled": false,
 			"idx": 8,
-			"name": "mixamorig:Spine2"
+			"name": "mixamorig_Spine2"
 		},
 		{
 			"components": [
@@ -3832,7 +3832,7 @@
 			],
 			"disabled": false,
 			"idx": 9,
-			"name": "mixamorig:Neck"
+			"name": "mixamorig_Neck"
 		},
 		{
 			"components": [
@@ -3844,7 +3844,7 @@
 			],
 			"disabled": false,
 			"idx": 10,
-			"name": "mixamorig:Head"
+			"name": "mixamorig_Head"
 		},
 		{
 			"components": [
@@ -3856,7 +3856,7 @@
 			],
 			"disabled": false,
 			"idx": 11,
-			"name": "mixamorig:HeadTop_End"
+			"name": "mixamorig_HeadTop_End"
 		},
 		{
 			"components": [
@@ -3868,7 +3868,7 @@
 			],
 			"disabled": false,
 			"idx": 12,
-			"name": "mixamorig:LeftShoulder"
+			"name": "mixamorig_LeftShoulder"
 		},
 		{
 			"components": [
@@ -3880,7 +3880,7 @@
 			],
 			"disabled": false,
 			"idx": 13,
-			"name": "mixamorig:LeftArm"
+			"name": "mixamorig_LeftArm"
 		},
 		{
 			"components": [
@@ -3892,7 +3892,7 @@
 			],
 			"disabled": false,
 			"idx": 14,
-			"name": "mixamorig:LeftForeArm"
+			"name": "mixamorig_LeftForeArm"
 		},
 		{
 			"components": [
@@ -3904,7 +3904,7 @@
 			],
 			"disabled": false,
 			"idx": 15,
-			"name": "mixamorig:LeftHand"
+			"name": "mixamorig_LeftHand"
 		},
 		{
 			"components": [
@@ -3916,7 +3916,7 @@
 			],
 			"disabled": false,
 			"idx": 16,
-			"name": "mixamorig:LeftHandThumb1"
+			"name": "mixamorig_LeftHandThumb1"
 		},
 		{
 			"components": [
@@ -3928,7 +3928,7 @@
 			],
 			"disabled": false,
 			"idx": 17,
-			"name": "mixamorig:LeftHandThumb2"
+			"name": "mixamorig_LeftHandThumb2"
 		},
 		{
 			"components": [
@@ -3940,7 +3940,7 @@
 			],
 			"disabled": false,
 			"idx": 18,
-			"name": "mixamorig:LeftHandThumb3"
+			"name": "mixamorig_LeftHandThumb3"
 		},
 		{
 			"components": [
@@ -3952,7 +3952,7 @@
 			],
 			"disabled": false,
 			"idx": 19,
-			"name": "mixamorig:LeftHandThumb4"
+			"name": "mixamorig_LeftHandThumb4"
 		},
 		{
 			"components": [
@@ -3964,7 +3964,7 @@
 			],
 			"disabled": false,
 			"idx": 20,
-			"name": "mixamorig:LeftHandIndex1"
+			"name": "mixamorig_LeftHandIndex1"
 		},
 		{
 			"components": [
@@ -3976,7 +3976,7 @@
 			],
 			"disabled": false,
 			"idx": 21,
-			"name": "mixamorig:LeftHandIndex2"
+			"name": "mixamorig_LeftHandIndex2"
 		},
 		{
 			"components": [
@@ -3988,7 +3988,7 @@
 			],
 			"disabled": false,
 			"idx": 22,
-			"name": "mixamorig:LeftHandIndex3"
+			"name": "mixamorig_LeftHandIndex3"
 		},
 		{
 			"components": [
@@ -4000,7 +4000,7 @@
 			],
 			"disabled": false,
 			"idx": 23,
-			"name": "mixamorig:LeftHandIndex4"
+			"name": "mixamorig_LeftHandIndex4"
 		},
 		{
 			"components": [
@@ -4012,7 +4012,7 @@
 			],
 			"disabled": false,
 			"idx": 24,
-			"name": "mixamorig:RightShoulder"
+			"name": "mixamorig_RightShoulder"
 		},
 		{
 			"components": [
@@ -4024,7 +4024,7 @@
 			],
 			"disabled": false,
 			"idx": 25,
-			"name": "mixamorig:RightArm"
+			"name": "mixamorig_RightArm"
 		},
 		{
 			"components": [
@@ -4036,7 +4036,7 @@
 			],
 			"disabled": false,
 			"idx": 26,
-			"name": "mixamorig:RightForeArm"
+			"name": "mixamorig_RightForeArm"
 		},
 		{
 			"components": [
@@ -4048,7 +4048,7 @@
 			],
 			"disabled": false,
 			"idx": 27,
-			"name": "mixamorig:RightHand"
+			"name": "mixamorig_RightHand"
 		},
 		{
 			"components": [
@@ -4060,7 +4060,7 @@
 			],
 			"disabled": false,
 			"idx": 28,
-			"name": "mixamorig:RightHandThumb1"
+			"name": "mixamorig_RightHandThumb1"
 		},
 		{
 			"components": [
@@ -4072,7 +4072,7 @@
 			],
 			"disabled": false,
 			"idx": 29,
-			"name": "mixamorig:RightHandThumb2"
+			"name": "mixamorig_RightHandThumb2"
 		},
 		{
 			"components": [
@@ -4084,7 +4084,7 @@
 			],
 			"disabled": false,
 			"idx": 30,
-			"name": "mixamorig:RightHandThumb3"
+			"name": "mixamorig_RightHandThumb3"
 		},
 		{
 			"components": [
@@ -4096,7 +4096,7 @@
 			],
 			"disabled": false,
 			"idx": 31,
-			"name": "mixamorig:RightHandThumb4"
+			"name": "mixamorig_RightHandThumb4"
 		},
 		{
 			"components": [
@@ -4108,7 +4108,7 @@
 			],
 			"disabled": false,
 			"idx": 32,
-			"name": "mixamorig:RightHandIndex1"
+			"name": "mixamorig_RightHandIndex1"
 		},
 		{
 			"components": [
@@ -4120,7 +4120,7 @@
 			],
 			"disabled": false,
 			"idx": 33,
-			"name": "mixamorig:RightHandIndex2"
+			"name": "mixamorig_RightHandIndex2"
 		},
 		{
 			"components": [
@@ -4132,7 +4132,7 @@
 			],
 			"disabled": false,
 			"idx": 34,
-			"name": "mixamorig:RightHandIndex3"
+			"name": "mixamorig_RightHandIndex3"
 		},
 		{
 			"components": [
@@ -4144,7 +4144,7 @@
 			],
 			"disabled": false,
 			"idx": 35,
-			"name": "mixamorig:RightHandIndex4"
+			"name": "mixamorig_RightHandIndex4"
 		},
 		{
 			"components": [
@@ -4156,7 +4156,7 @@
 			],
 			"disabled": false,
 			"idx": 36,
-			"name": "mixamorig:LeftUpLeg"
+			"name": "mixamorig_LeftUpLeg"
 		},
 		{
 			"components": [
@@ -4168,7 +4168,7 @@
 			],
 			"disabled": false,
 			"idx": 37,
-			"name": "mixamorig:LeftLeg"
+			"name": "mixamorig_LeftLeg"
 		},
 		{
 			"components": [
@@ -4180,7 +4180,7 @@
 			],
 			"disabled": false,
 			"idx": 38,
-			"name": "mixamorig:LeftFoot"
+			"name": "mixamorig_LeftFoot"
 		},
 		{
 			"components": [
@@ -4192,7 +4192,7 @@
 			],
 			"disabled": false,
 			"idx": 39,
-			"name": "mixamorig:LeftToeBase"
+			"name": "mixamorig_LeftToeBase"
 		},
 		{
 			"components": [
@@ -4204,7 +4204,7 @@
 			],
 			"disabled": false,
 			"idx": 40,
-			"name": "mixamorig:LeftToe_End"
+			"name": "mixamorig_LeftToe_End"
 		},
 		{
 			"components": [
@@ -4216,7 +4216,7 @@
 			],
 			"disabled": false,
 			"idx": 41,
-			"name": "mixamorig:RightUpLeg"
+			"name": "mixamorig_RightUpLeg"
 		},
 		{
 			"components": [

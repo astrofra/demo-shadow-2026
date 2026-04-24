@@ -336,7 +336,7 @@ The implementation lowercases the input, so `Left` and `RIGHT` are also accepted
 - the value is interpreted in degrees
 - positive values bend the torso forward
 - negative values bend the torso backward
-- the bend is distributed across `mixamorig:Spine`, `mixamorig:Spine1`, and `mixamorig:Spine2`
+- the bend is distributed across `mixamorig_Spine`, `mixamorig_Spine1`, and `mixamorig_Spine2`
 - the bend animation is blocking and lasts `2.0` seconds
 
 ### Action Completion Semantics

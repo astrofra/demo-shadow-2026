@@ -11,19 +11,19 @@ local HAND_SIDES = {
 	left = {
 		label = "Left",
 		sign = 1,
-		shoulder = "mixamorig:LeftShoulder",
-		arm = "mixamorig:LeftArm",
-		forearm = "mixamorig:LeftForeArm",
-		hand = "mixamorig:LeftHand",
+		shoulder = "mixamorig_LeftShoulder",
+		arm = "mixamorig_LeftArm",
+		forearm = "mixamorig_LeftForeArm",
+		hand = "mixamorig_LeftHand",
 		grab_node = "GrabNodeLeft"
 	},
 	right = {
 		label = "Right",
 		sign = -1,
-		shoulder = "mixamorig:RightShoulder",
-		arm = "mixamorig:RightArm",
-		forearm = "mixamorig:RightForeArm",
-		hand = "mixamorig:RightHand",
+		shoulder = "mixamorig_RightShoulder",
+		arm = "mixamorig_RightArm",
+		forearm = "mixamorig_RightForeArm",
+		hand = "mixamorig_RightHand",
 		grab_node = "GrabNodeRight"
 	}
 }
@@ -31,27 +31,27 @@ local HAND_SIDES = {
 local LEG_SIDES = {
 	left = {
 		sign = 1,
-		upper = "mixamorig:LeftUpLeg",
-		lower = "mixamorig:LeftLeg",
-		foot = "mixamorig:LeftFoot",
+		upper = "mixamorig_LeftUpLeg",
+		lower = "mixamorig_LeftLeg",
+		foot = "mixamorig_LeftFoot",
 		phase_offset = 0.0
 	},
 	right = {
 		sign = -1,
-		upper = "mixamorig:RightUpLeg",
-		lower = "mixamorig:RightLeg",
-		foot = "mixamorig:RightFoot",
+		upper = "mixamorig_RightUpLeg",
+		lower = "mixamorig_RightLeg",
+		foot = "mixamorig_RightFoot",
 		phase_offset = math.pi
 	}
 }
 
 local LOOK_NODES = {
 	neck = {
-		node = "mixamorig:Neck",
+		node = "mixamorig_Neck",
 		weight = 0.4
 	},
 	head = {
-		node = "mixamorig:Head",
+		node = "mixamorig_Head",
 		weight = 0.6
 	}
 }
@@ -114,26 +114,26 @@ local LEG_IK_YAW_OFFSETS = {
 }
 
 local CONTROLLED_NODE_NAMES = {
-	"mixamorig:Hips",
-	"mixamorig:Spine",
-	"mixamorig:Spine1",
-	"mixamorig:Spine2",
-	"mixamorig:Neck",
-	"mixamorig:Head",
-	"mixamorig:LeftShoulder",
-	"mixamorig:LeftArm",
-	"mixamorig:LeftForeArm",
-	"mixamorig:LeftHand",
-	"mixamorig:RightShoulder",
-	"mixamorig:RightArm",
-	"mixamorig:RightForeArm",
-	"mixamorig:RightHand",
-	"mixamorig:LeftUpLeg",
-	"mixamorig:LeftLeg",
-	"mixamorig:LeftFoot",
-	"mixamorig:RightUpLeg",
-	"mixamorig:RightLeg",
-	"mixamorig:RightFoot"
+	"mixamorig_Hips",
+	"mixamorig_Spine",
+	"mixamorig_Spine1",
+	"mixamorig_Spine2",
+	"mixamorig_Neck",
+	"mixamorig_Head",
+	"mixamorig_LeftShoulder",
+	"mixamorig_LeftArm",
+	"mixamorig_LeftForeArm",
+	"mixamorig_LeftHand",
+	"mixamorig_RightShoulder",
+	"mixamorig_RightArm",
+	"mixamorig_RightForeArm",
+	"mixamorig_RightHand",
+	"mixamorig_LeftUpLeg",
+	"mixamorig_LeftLeg",
+	"mixamorig_LeftFoot",
+	"mixamorig_RightUpLeg",
+	"mixamorig_RightLeg",
+	"mixamorig_RightFoot"
 }
 
 local Controller = {}
@@ -1505,7 +1505,7 @@ end
 
 function Controller:_compute_step_target(side_name)
 	local side = LEG_SIDES[side_name]
-	local hips_position = get_world_position(self.view_nodes["mixamorig:Hips"])
+	local hips_position = get_world_position(self.view_nodes["mixamorig_Hips"])
 	local step_length_min = self:_scaled_distance(self.params.step_length_min)
 	local step_length_max = self:_scaled_distance(self.params.step_length_max)
 	local step_length = self:_scaled_distance(self.params.step_length_base + self.locomotion_speed * self.params.step_length_speed_scale)
@@ -1793,8 +1793,8 @@ function Controller:_update_rotate_motion(dt)
 end
 
 function Controller:_apply_hips_pose()
-	local hips_transform = self.view_nodes["mixamorig:Hips"]:GetTransform()
-	local hips_rest = self.rest_pose["mixamorig:Hips"]
+	local hips_transform = self.view_nodes["mixamorig_Hips"]:GetTransform()
+	local hips_rest = self.rest_pose["mixamorig_Hips"]
 	local support_sign = LEG_SIDES[self.support_side].sign
 	local sway = self.params.hips_sway * support_sign * self.motion_weight
 	local bob = math.sin(self.step_progress * math.pi) * self.params.hips_bob * self.motion_weight
@@ -1855,9 +1855,9 @@ function Controller:_apply_spine_bend()
 	end
 
 	local spine_weights = {
-		{name = "mixamorig:Spine", weight = 0.22},
-		{name = "mixamorig:Spine1", weight = 0.33},
-		{name = "mixamorig:Spine2", weight = 0.45}
+		{name = "mixamorig_Spine", weight = 0.22},
+		{name = "mixamorig_Spine1", weight = 0.33},
+		{name = "mixamorig_Spine2", weight = 0.45}
 	}
 
 	for _, entry in ipairs(spine_weights) do
@@ -2016,12 +2016,12 @@ end
 
 function Controller:GetDebugDrawState()
 	local root_position = copy_vec3(self.instance_node:GetTransform():GetPos())
-	local hips_node = self.view_nodes["mixamorig:Hips"]
-	local head_node = self.view_nodes["mixamorig:Head"]
-	local left_shoulder_pos = get_world_position(self.view_nodes["mixamorig:LeftShoulder"])
-	local right_shoulder_pos = get_world_position(self.view_nodes["mixamorig:RightShoulder"])
-	local left_up_leg_pos = get_world_position(self.view_nodes["mixamorig:LeftUpLeg"])
-	local right_up_leg_pos = get_world_position(self.view_nodes["mixamorig:RightUpLeg"])
+	local hips_node = self.view_nodes["mixamorig_Hips"]
+	local head_node = self.view_nodes["mixamorig_Head"]
+	local left_shoulder_pos = get_world_position(self.view_nodes["mixamorig_LeftShoulder"])
+	local right_shoulder_pos = get_world_position(self.view_nodes["mixamorig_RightShoulder"])
+	local left_up_leg_pos = get_world_position(self.view_nodes["mixamorig_LeftUpLeg"])
+	local right_up_leg_pos = get_world_position(self.view_nodes["mixamorig_RightUpLeg"])
 	local target_position = nil
 	local hips_position = get_world_position(hips_node)
 	local head_position = get_world_position(head_node)
@@ -2233,14 +2233,14 @@ local function create_controller(scene, instance_node_name)
 		controller.rest_pose[name] = capture_local_pose(controller.view_nodes[name])
 	end
 
-	controller.arm_lengths.left.upper = resolve_chain_length(controller.rest_pose["mixamorig:LeftForeArm"])
-	controller.arm_lengths.left.lower = resolve_chain_length(controller.rest_pose["mixamorig:LeftHand"])
-	controller.arm_lengths.right.upper = resolve_chain_length(controller.rest_pose["mixamorig:RightForeArm"])
-	controller.arm_lengths.right.lower = resolve_chain_length(controller.rest_pose["mixamorig:RightHand"])
-	controller.leg_lengths.left.upper = resolve_chain_length(controller.rest_pose["mixamorig:LeftLeg"])
-	controller.leg_lengths.left.lower = resolve_chain_length(controller.rest_pose["mixamorig:LeftFoot"])
-	controller.leg_lengths.right.upper = resolve_chain_length(controller.rest_pose["mixamorig:RightLeg"])
-	controller.leg_lengths.right.lower = resolve_chain_length(controller.rest_pose["mixamorig:RightFoot"])
+	controller.arm_lengths.left.upper = resolve_chain_length(controller.rest_pose["mixamorig_LeftForeArm"])
+	controller.arm_lengths.left.lower = resolve_chain_length(controller.rest_pose["mixamorig_LeftHand"])
+	controller.arm_lengths.right.upper = resolve_chain_length(controller.rest_pose["mixamorig_RightForeArm"])
+	controller.arm_lengths.right.lower = resolve_chain_length(controller.rest_pose["mixamorig_RightHand"])
+	controller.leg_lengths.left.upper = resolve_chain_length(controller.rest_pose["mixamorig_LeftLeg"])
+	controller.leg_lengths.left.lower = resolve_chain_length(controller.rest_pose["mixamorig_LeftFoot"])
+	controller.leg_lengths.right.upper = resolve_chain_length(controller.rest_pose["mixamorig_RightLeg"])
+	controller.leg_lengths.right.lower = resolve_chain_length(controller.rest_pose["mixamorig_RightFoot"])
 	controller:_reset_gait_state()
 
 	return controller
