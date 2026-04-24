@@ -520,6 +520,29 @@ function Controller:_resolve_node_ref(node_ref)
 		return cached
 	end
 
+	local instance_name, internal_name = node_ref:match("^([^:]+):(.+)$")
+	if instance_name ~= nil and internal_name ~= nil and internal_name ~= "" then
+		local instance_node = nil
+		local scene_view = nil
+		if instance_name == self.instance_node_name then
+			instance_node = self.instance_node
+			scene_view = self.scene_view
+		else
+			instance_node = self.scene:GetNode(instance_name)
+			if instance_node:IsValid() then
+				scene_view = instance_node:GetInstanceSceneView()
+			end
+		end
+
+		if instance_node ~= nil and instance_node:IsValid() and scene_view ~= nil then
+			local instance_node_ref = scene_view:GetNode(self.scene, internal_name)
+			if instance_node_ref:IsValid() then
+				self.node_refs[node_ref] = instance_node_ref
+				return instance_node_ref
+			end
+		end
+	end
+
 	local node = self.scene:GetNodeEx(node_ref)
 	if node:IsValid() then
 		self.node_refs[node_ref] = node
