@@ -5,10 +5,11 @@ local actions = {
 -- {type = "camera", camera = "Camera2", tracking = "automaton-rig-tpose"}
 -- {type = "camera", camera = "Camera2", tracking = "automaton-rig-tpose", offset = {0.0, 1.4, 0.0}}
 
-	-- {type = "camera", camera = "Camera", steady_ca:m = {target = "automaton-rig-tpose", distance = 5.0, angle = 180, offset = {0.0, 1.4, 0.0}}},
+	{type = "camera", camera = "Camera", steady_cam = {target = "automaton-rig-tpose", distance = 7.0, angle = 0, offset = {0.0, 1.4, 0.0}}},
 	{type = "move", start = "path_0", target = "path_1"},
 	{type = "rotate", target = "path_2"},
     {type = "move", start = "path_1", target = "path_2"},
+	{type = "grab", side = "right", target = "watering_can"},
     {type = "rotate", target = "path_3"},
     {type = "move", start = "path_2", target = "path_3"},
     {type = "rotate", target = "path_4"},
