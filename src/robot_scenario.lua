@@ -14,7 +14,7 @@ local actions = {
     {type = "move", start = "path_1", target = "path_2"},
 	{type = "look_at", target = "watering_can"},
 	{type = "lock_arm", side = "right", target = "automaton-rig-tpose:hand_target_can"},
-	{type = "bend", value = -70},
+	{type = "bend", value = -120},
 	{type = "grab", side = "right", target = "watering_can"},
 	{type = "unlock_arm", side = "right"},
 	{type = "bend", value = 0},

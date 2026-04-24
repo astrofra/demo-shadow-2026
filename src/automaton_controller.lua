@@ -483,6 +483,15 @@ local function solve_two_bone_joint(root_pos, target_pos, pole_hint, upper_len, 
 	return root_pos + direction * along + pole * math.sqrt(height_sq)
 end
 
+local function clamp_target_to_two_bone_reach(root_pos, target_pos, upper_len, lower_len, fallback_dir)
+	local to_target = target_pos - root_pos
+	local min_reach = math.abs(upper_len - lower_len) + 0.0001
+	local max_reach = math.max(upper_len + lower_len - 0.0001, min_reach)
+	local distance = clamp(hg.Len(to_target), min_reach, max_reach)
+	local direction = safe_normalize(to_target, fallback_dir)
+	return root_pos + direction * distance
+end
+
 local function compute_step_drive(step_progress)
 	if step_progress < 0.12 then
 		return 0.0
@@ -1957,6 +1966,7 @@ function Controller:_compute_arm_pose_to_world_target(side_name, target_hand_pos
 	local upper_len = arm.upper * self.uniform_scale
 	local lower_len = arm.lower * self.uniform_scale
 	local pole_hint = self.current_right * (side.sign * self.params.arm_elbow_outward_bias) + self.current_forward * self.params.arm_elbow_forward_bias
+	hand_target = clamp_target_to_two_bone_reach(arm_root_world, hand_target, upper_len, lower_len, safe_normalize(pole_hint, hg.Vec3(0.0, -1.0, 0.0)))
 	local elbow_world = solve_two_bone_joint(arm_root_world, hand_target, pole_hint, upper_len, lower_len)
 	local plane_normal = hg.Cross(elbow_world - arm_root_world, hand_target - elbow_world)
 
