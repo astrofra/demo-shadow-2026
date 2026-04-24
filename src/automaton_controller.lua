@@ -115,6 +115,9 @@ local LEG_IK_YAW_OFFSETS = {
 
 local CONTROLLED_NODE_NAMES = {
 	"mixamorig:Hips",
+	"mixamorig:Spine",
+	"mixamorig:Spine1",
+	"mixamorig:Spine2",
 	"mixamorig:Neck",
 	"mixamorig:Head",
 	"mixamorig:LeftShoulder",
@@ -675,6 +678,14 @@ function Controller:ReleaseRightHandObject()
 	self:_release_hand_object("right")
 end
 
+function Controller:SetFreeArmAmplitude(side_name, amplitude)
+	self:_set_free_arm_amplitude(side_name, amplitude)
+end
+
+function Controller:SetBendDegrees(degrees)
+	self:_set_bend_target_deg(degrees)
+end
+
 function Controller:LookAtNode(node_ref)
 	self:_set_look_at_target(node_ref)
 end
@@ -727,6 +738,32 @@ end
 function Controller:_clear_hand_lock(side)
 	local lock_state = self.hand_locks[side]
 	lock_state.active = false
+end
+
+function Controller:_set_free_arm_amplitude(side_name, amplitude)
+	local normalized_side = normalize_side(side_name)
+	if normalized_side == nil then
+		error(('AutomatonController: invalid side for arm amplitude: "%s"'):format(tostring(side_name)))
+	end
+
+	if type(amplitude) ~= "number" then
+		error("AutomatonController: arm amplitude value must be a number")
+	end
+
+	self.free_arm_amplitude[normalized_side] = clamp(amplitude, 0.0, 1.0)
+end
+
+function Controller:_set_bend_target_deg(degrees)
+	if type(degrees) ~= "number" then
+		error("AutomatonController: bend value must be a number in degrees")
+	end
+
+	local bend_state = self.bend_state
+	bend_state.start = bend_state.current
+	bend_state.target = hg.Deg(degrees)
+	bend_state.elapsed = 0.0
+	bend_state.duration = self.params.bend_duration
+	bend_state.active = true
 end
 
 function Controller:_set_look_at_target(target_name)
@@ -1310,6 +1347,10 @@ function Controller:_run_action(action)
 		else
 			error(('AutomatonController: invalid side for release: "%s"'):format(tostring(action.side)))
 		end
+	elseif action_type == "arm_amplitude" then
+		self:SetFreeArmAmplitude(action.side, read_number_field(action, {"value", "amplitude"}, "arm_amplitude value"))
+	elseif action_type == "bend" then
+		self:SetBendDegrees(read_number_field(action, {"value", "degrees", "angle"}, "bend value"))
 	elseif action_type == "look_at" then
 		self:LookAtNode(action.target)
 	elseif action_type == "clear_look_at" then
@@ -1334,8 +1375,10 @@ function Controller:_is_action_complete(action)
 	elseif action_type == "unlock_arm" then
 		local side = normalize_side(action.side)
 		return side ~= nil and self.hand_locks[side].blend <= 0.0
-	elseif action_type == "grab" or action_type == "release" or action_type == "camera" or action_type == "set_camera" then
+	elseif action_type == "grab" or action_type == "release" or action_type == "camera" or action_type == "set_camera" or action_type == "arm_amplitude" then
 		return true
+	elseif action_type == "bend" then
+		return not self.bend_state.active
 	elseif action_type == "look_at" then
 		return self.look_at_state.blend >= 1.0
 	elseif action_type == "clear_look_at" then
@@ -1386,6 +1429,28 @@ function Controller:_refresh_instance_scale()
 	local scale = self.instance_node:GetTransform():GetScale()
 	self.instance_scale = copy_vec3(scale)
 	self.uniform_scale = math.max(average_abs_scale(scale), 0.0001)
+end
+
+function Controller:_update_bend_state(dt)
+	local bend_state = self.bend_state
+	if not bend_state.active then
+		return
+	end
+
+	if bend_state.duration <= 0.0 then
+		bend_state.current = bend_state.target
+		bend_state.active = false
+		return
+	end
+
+	bend_state.elapsed = math.min(bend_state.elapsed + dt, bend_state.duration)
+	local alpha = clamp(bend_state.elapsed / bend_state.duration, 0.0, 1.0)
+	bend_state.current = bend_state.start + (bend_state.target - bend_state.start) * alpha
+
+	if alpha >= 1.0 then
+		bend_state.current = bend_state.target
+		bend_state.active = false
+	end
 end
 
 function Controller:_scaled_distance(value)
@@ -1783,6 +1848,25 @@ function Controller:_apply_walk_pose()
 	self:_apply_leg_pose("right")
 end
 
+function Controller:_apply_spine_bend()
+	local bend = self.bend_state.current
+	if math.abs(bend) <= 0.00001 then
+		return
+	end
+
+	local spine_weights = {
+		{name = "mixamorig:Spine", weight = 0.22},
+		{name = "mixamorig:Spine1", weight = 0.33},
+		{name = "mixamorig:Spine2", weight = 0.45}
+	}
+
+	for _, entry in ipairs(spine_weights) do
+		local node = self.view_nodes[entry.name]
+		local rest_pose = self.rest_pose[entry.name]
+		node:GetTransform():SetPosRot(rest_pose.pos, rest_pose.rot + hg.Vec3(bend * entry.weight, 0.0, 0.0))
+	end
+end
+
 function Controller:_compute_free_arm_pose(side_name)
 	local neutral = FREE_ARM_NEUTRAL_OFFSETS[side_name]
 	local swing_offsets = FREE_ARM_WALK_SWING_OFFSETS[side_name]
@@ -1794,7 +1878,7 @@ function Controller:_compute_free_arm_pose(side_name)
 	local arm_rest = self.rest_pose[side.arm]
 	local forearm_rest = self.rest_pose[side.forearm]
 	local hand_rest = self.rest_pose[side.hand]
-	local swing_scale = swing * self.params.free_arm_swing_scale
+	local swing_scale = swing * self.params.free_arm_swing_scale * self.free_arm_amplitude[side_name]
 
 	return {
 		shoulder = shoulder_rest.rot + neutral.shoulder + scale_vec3(swing_offsets.shoulder, swing_scale),
@@ -1877,7 +1961,9 @@ function Controller:Update(dt)
 	self:_update_root_motion(dt)
 	self:_update_hand_lock_blends(dt)
 	self:_update_look_at_blend(dt)
+	self:_update_bend_state(dt)
 	self:_apply_walk_pose()
+	self:_apply_spine_bend()
 	self:_apply_arm_pose("left")
 	self:_apply_arm_pose("right")
 	self:_apply_look_at_pose()
@@ -1907,6 +1993,9 @@ function Controller:GetDebugState()
 		rotation_target_active = self.rotate_target_yaw ~= nil,
 		current_speed = self.current_speed,
 		gait_drive = self.gait_drive,
+		bend_deg = math.deg(self.bend_state.current),
+		left_arm_amplitude = self.free_arm_amplitude.left,
+		right_arm_amplitude = self.free_arm_amplitude.right,
 		support_side = self.support_side,
 		step_progress = self.step_progress,
 		step_pause_timer = self.step_pause_timer,
@@ -2044,6 +2133,7 @@ local function create_controller(scene, instance_node_name)
 			look_at_yaw_limit = hg.Deg(70.0),
 			look_at_pitch_up_limit = hg.Deg(35.0),
 			look_at_pitch_down_limit = hg.Deg(-45.0),
+			bend_duration = 2.0,
 			camera_tracking_latency = 0.28,
 			camera_fov_blend_duration = 1.0,
 			camera_steady_distance = 4.0,
@@ -2058,6 +2148,10 @@ local function create_controller(scene, instance_node_name)
 		hand_locks = {
 			left = {active = false, blend = 0.0, target_name = nil, target_node = nil},
 			right = {active = false, blend = 0.0, target_name = nil, target_node = nil}
+		},
+		free_arm_amplitude = {
+			left = 1.0,
+			right = 1.0
 		},
 		held_objects = {
 			left = {node = nil, node_ref = nil, original_parent = nil, attached_parent = nil, using_proxy = false},
@@ -2074,6 +2168,14 @@ local function create_controller(scene, instance_node_name)
 			target_node = nil,
 			yaw = 0.0,
 			pitch = 0.0
+		},
+		bend_state = {
+			current = 0.0,
+			start = 0.0,
+			target = 0.0,
+			elapsed = 0.0,
+			duration = 2.0,
+			active = false
 		},
 		camera_state = {
 			node_name = nil,

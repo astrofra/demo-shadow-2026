@@ -220,8 +220,10 @@ Canonical action types:
 - `rotate`
 - `lock_arm`
 - `unlock_arm`
+- `arm_amplitude`
 - `grab`
 - `release`
+- `bend`
 - `look_at`
 - `clear_look_at`
 - `camera`
@@ -257,6 +259,13 @@ For example, `lock arm` and `lock-arm` will be interpreted as `lock_arm`.
 {type = "unlock_arm", side = "left"}
 ```
 
+`arm_amplitude`
+
+```lua
+{type = "arm_amplitude", side = "left", value = 0.0}
+{type = "arm_amplitude", side = "right", amplitude = 0.5}
+```
+
 `grab`
 
 ```lua
@@ -267,6 +276,13 @@ For example, `lock arm` and `lock-arm` will be interpreted as `lock_arm`.
 
 ```lua
 {type = "release", side = "right"}
+```
+
+`bend`
+
+```lua
+{type = "bend", value = 20}
+{type = "bend", degrees = -10}
 ```
 
 `look_at`
@@ -306,14 +322,33 @@ Aliases:
 `side` accepts `left` or `right`.
 The implementation lowercases the input, so `Left` and `RIGHT` are also accepted.
 
+`arm_amplitude` details:
+
+- `side` is required
+- `value` or `amplitude` is required
+- values are clamped between `0.0` and `1.0`
+- `0.0` keeps the unlocked arm visually fixed
+- `1.0` keeps the current default free-arm swing amplitude
+
+`bend` details:
+
+- `value`, `degrees`, or `angle` is required
+- the value is interpreted in degrees
+- positive values bend the torso forward
+- negative values bend the torso backward
+- the bend is distributed across `mixamorig:Spine`, `mixamorig:Spine1`, and `mixamorig:Spine2`
+- the bend animation is blocking and lasts `2.0` seconds
+
 ### Action Completion Semantics
 
 - `move`: completes when `IsAtTarget()` becomes true
 - `rotate`: completes when `IsRotationDone()` becomes true
 - `lock_arm`: completes when the blend reaches `1.0`
 - `unlock_arm`: completes when the blend reaches `0.0`
+- `arm_amplitude`: completes immediately after updating the selected side amplitude
 - `grab`: completes immediately after the parenting operation
 - `release`: completes immediately after the reparenting operation
+- `bend`: completes when the 2-second torso bend animation reaches its target
 - `look_at`: completes when the look blend reaches `1.0`
 - `clear_look_at`: completes when the look blend reaches `0.0`
 - `camera`: completes immediately after changing the camera state
@@ -331,6 +366,7 @@ Important traits:
 - if heading error is large enough, the controller enters a turn-in-place locomotion state
 - feet are procedurally planted and swung through the existing leg IK system
 - free arms swing automatically while walking unless they are locked
+- `arm_amplitude` scales that unlocked swing independently for the left and right arms
 
 ### Rotate
 
