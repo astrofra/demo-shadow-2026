@@ -1770,43 +1770,29 @@ function Controller:_update_rotate_motion(dt)
 	self.gait_drive = 0.0
 	self.locomotion_speed = 0.0
 	self.motion_weight = 0.0
-	self.step_motion_weight = self.params.rotate_step_progress_weight
+	self.step_motion_weight = 0.0
 	self.desired_direction = forward_from_yaw(desired_yaw)
 	self.yaw_error = self:_get_root_yaw_error(rotation.y, desired_yaw)
 
-	if math.abs(self.yaw_error) <= self.params.rotate_arrive_angle and not self.step_active and self.step_pause_timer <= 0.0 and not self.turn_step.active then
+	if math.abs(self.yaw_error) <= self.params.rotate_arrive_angle then
 		self.state = "RotateArrived"
 		self:_clear_rotate_target()
 		self.rotate_arrived = true
 		return 0.0
 	end
 
-	if not self.step_active and self.step_pause_timer <= 0.0 and not self.turn_step.active then
-		self:_begin_rotate_step(self.yaw_error)
-	end
-
-	self:_update_footstep_state(dt)
-
-	if self.turn_step.active then
-		local turn_progress = self.step_active and self.step_progress or 1.0
-		self:_apply_turn_step_rotation(turn_progress)
-
-		if not self.step_active then
-			self.turn_step.active = false
-			self.turn_step.delta_yaw = 0.0
-			self.turn_step.applied_yaw = 0.0
-		end
-	end
-
+	local yaw_step = clamp(self.yaw_error, -self.params.turn_speed * dt, self.params.turn_speed * dt)
+	rotation.y = rotation.y + yaw_step
+	instance_transform:SetRot(rotation)
 	rotation = instance_transform:GetRot()
 	self.current_forward = self:_get_forward_from_root_rotation(rotation.y)
 	self.current_right = self:_get_right_from_root_rotation(rotation.y)
 	self.yaw_error = self:_get_root_yaw_error(rotation.y, desired_yaw)
-	self.motion_weight = (self.step_active or self.step_pause_timer > 0.0) and self.params.rotate_motion_weight or 0.0
-	self.gait_drive = self.step_active and compute_step_drive(self.step_progress) or 0.0
-	self.state = self.step_active and "RotateStep" or (self.step_pause_timer > 0.0 and "RotatePause" or "RotateInPlace")
+	self.motion_weight = 0.0
+	self.gait_drive = 0.0
+	self.state = "RotateInPlace"
 
-	if math.abs(self.yaw_error) <= self.params.rotate_arrive_angle and not self.step_active and self.step_pause_timer <= 0.0 and not self.turn_step.active then
+	if math.abs(self.yaw_error) <= self.params.rotate_arrive_angle then
 		self.state = "RotateArrived"
 		self:_clear_rotate_target()
 		self.rotate_arrived = true
