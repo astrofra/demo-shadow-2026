@@ -14,6 +14,7 @@ local MAIN_LIGHT_SHADOW_NEAR = 25.0
 local MAIN_LIGHT_SHADOW_FAR = 55.0
 local COMPOSITING_SETTINGS_PATH = "compositing_tuning.lua"
 local COMPOSITING_UI_VIEW_ID = 255
+local AMBIANT_AUDIO_ASSET = "audio/ambiant.ogg"
 
 local DEFAULT_COMPOSITING_SETTINGS = {
 	COMPOSITING_VIGNETTE_START = 0.72,
@@ -532,8 +533,10 @@ local function run_demo_3d(win, res_x, res_y, config, compositing_settings, load
 	local show_automaton_debug_draw = false
 	local ui_state = {dirty = false, status_message = load_status_message or ""}
 	local frame = 0
+	local ambiant_audio_source
 
 	start_robot_scenario(automaton_controller)
+	ambiant_audio_source = hg.StreamOGGAssetStereo(AMBIANT_AUDIO_ASSET, hg.StereoSourceState(1, hg.SR_Loop))
 
 	hg.ImGuiInit(10, imgui_prg, imgui_img_prg)
 
@@ -658,6 +661,7 @@ local function main(cmd_arg)
 	end
 
 	hg.WindowSystemShutdown()
+	hg.AudioShutdown()
 	hg.InputShutdown()
 end
 
