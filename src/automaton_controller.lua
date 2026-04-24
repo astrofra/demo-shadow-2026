@@ -14,7 +14,8 @@ local HAND_SIDES = {
 		shoulder = "mixamorig:LeftShoulder",
 		arm = "mixamorig:LeftArm",
 		forearm = "mixamorig:LeftForeArm",
-		hand = "mixamorig:LeftHand"
+		hand = "mixamorig:LeftHand",
+		grab_node = "GrabNodeLeft"
 	},
 	right = {
 		label = "Right",
@@ -22,7 +23,8 @@ local HAND_SIDES = {
 		shoulder = "mixamorig:RightShoulder",
 		arm = "mixamorig:RightArm",
 		forearm = "mixamorig:RightForeArm",
-		hand = "mixamorig:RightHand"
+		hand = "mixamorig:RightHand",
+		grab_node = "GrabNodeRight"
 	}
 }
 
@@ -1099,8 +1101,8 @@ function Controller:_update_hand_attach_proxies()
 	for _, side_name in ipairs({"left", "right"}) do
 		local proxy_node = self.hand_attach_proxies[side_name]
 		if proxy_node ~= nil and proxy_node:IsValid() then
-			local hand_world = self.view_nodes[HAND_SIDES[side_name].hand]:GetTransform():GetWorld()
-			proxy_node:GetTransform():SetWorld(hand_world)
+			local attach_node = self:_get_grab_attach_node(side_name)
+			proxy_node:GetTransform():SetWorld(attach_node:GetTransform():GetWorld())
 		end
 	end
 end
@@ -1114,24 +1116,34 @@ function Controller:_clear_held_object_state(side_name)
 	held.using_proxy = false
 end
 
+function Controller:_get_grab_attach_node(side_name)
+	local side = HAND_SIDES[side_name]
+	local grab_node = self.scene_view:GetNode(self.scene, side.grab_node)
+	if grab_node:IsValid() then
+		return grab_node
+	end
+
+	return self.view_nodes[side.hand]
+end
+
 function Controller:_attach_node_to_hand(side_name, node)
-	local hand_node = self.view_nodes[HAND_SIDES[side_name].hand]
+	local attach_node = self:_get_grab_attach_node(side_name)
 	local transform = node:GetTransform()
 	local zero = hg.Vec3(0.0, 0.0, 0.0)
 	local ok = pcall(function()
-		transform:SetParent(hand_node)
+		transform:SetParent(attach_node)
 		transform:SetPosRot(zero, zero)
 	end)
 
 	if ok then
 		local parent = transform:GetParent()
-		if parent:IsValid() and parent:GetUid() == hand_node:GetUid() then
-			return hand_node, false
+		if parent:IsValid() and parent:GetUid() == attach_node:GetUid() then
+			return attach_node, false
 		end
 	end
 
 	local proxy_node = self:_ensure_hand_attach_proxy(side_name)
-	proxy_node:GetTransform():SetWorld(hand_node:GetTransform():GetWorld())
+	proxy_node:GetTransform():SetWorld(attach_node:GetTransform():GetWorld())
 	transform:SetParent(proxy_node)
 	transform:SetPosRot(zero, zero)
 	return proxy_node, true

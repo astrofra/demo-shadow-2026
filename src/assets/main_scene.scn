@@ -46,7 +46,7 @@
 			255
 		],
 		"brdf_map": "core/pbr/brdf.dds",
-		"current_camera": 56,
+		"current_camera": 18,
 		"fog_color": [
 			17,
 			9,
@@ -89,6 +89,30 @@
 		},
 		{
 			"name": "props/watering_can/watering_can.scn"
+		},
+		{
+			"name": "props/square_shadow/round_shadow.scn"
+		},
+		{
+			"name": "props/square_shadow/square_shadow.scn"
+		},
+		{
+			"name": "props/square_shadow/round_shadow.scn"
+		},
+		{
+			"name": "props/square_shadow/round_shadow.scn"
+		},
+		{
+			"name": "props/square_shadow/round_shadow.scn"
+		},
+		{
+			"name": "props/square_shadow/round_shadow.scn"
+		},
+		{
+			"name": "props/square_shadow/round_shadow.scn"
+		},
+		{
+			"name": "props/square_shadow/round_shadow.scn"
 		}
 	],
 	"key_values": null,
@@ -881,6 +905,110 @@
 			"idx": 110,
 			"instance": 3,
 			"name": "watering_can"
+		},
+		{
+			"components": [
+				59,
+				4294967295,
+				4294967295,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 118,
+			"instance": 10,
+			"name": "round_shadow"
+		},
+		{
+			"components": [
+				58,
+				4294967295,
+				4294967295,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 119,
+			"instance": 6,
+			"name": "round_shadow"
+		},
+		{
+			"components": [
+				63,
+				4294967295,
+				4294967295,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 121,
+			"instance": 7,
+			"name": "round_shadow"
+		},
+		{
+			"components": [
+				60,
+				4294967295,
+				4294967295,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 122,
+			"instance": 11,
+			"name": "round_shadow"
+		},
+		{
+			"components": [
+				62,
+				4294967295,
+				4294967295,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 125,
+			"instance": 9,
+			"name": "round_shadow"
+		},
+		{
+			"components": [
+				61,
+				4294967295,
+				4294967295,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 127,
+			"instance": 8,
+			"name": "round_shadow"
+		},
+		{
+			"components": [
+				65,
+				4294967295,
+				4294967295,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 129,
+			"instance": 4,
+			"name": "round_shadow"
+		},
+		{
+			"components": [
+				64,
+				4294967295,
+				4294967295,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 131,
+			"instance": 5,
+			"name": "square_shadow"
 		}
 	],
 	"objects": [
@@ -4648,6 +4776,150 @@
 				1.0,
 				1.0,
 				1.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				15.040085792541504,
+				0.009999999776482582,
+				-10.228697776794434
+			],
+			"rot": [
+				-0.0,
+				0.0,
+				0.0
+			],
+			"scl": [
+				3.0,
+				3.0,
+				3.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				9.151641845703125,
+				0.009999999776482582,
+				-8.754384994506836
+			],
+			"rot": [
+				-0.0,
+				0.0,
+				0.0
+			],
+			"scl": [
+				2.0,
+				2.0,
+				2.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				12.191739082336426,
+				0.009999999776482582,
+				5.310247898101807
+			],
+			"rot": [
+				-0.0,
+				0.0,
+				0.0
+			],
+			"scl": [
+				4.0,
+				4.0,
+				4.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				-11.351113319396973,
+				0.009999999776482582,
+				-10.373235702514648
+			],
+			"rot": [
+				-0.0,
+				0.0,
+				0.0
+			],
+			"scl": [
+				3.0,
+				3.0,
+				3.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				11.958373069763184,
+				0.009999999776482582,
+				1.7164130210876465
+			],
+			"rot": [
+				-0.0,
+				0.0,
+				0.0
+			],
+			"scl": [
+				3.0,
+				3.0,
+				3.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				11.748896598815918,
+				0.009999999776482582,
+				-6.322120666503906
+			],
+			"rot": [
+				-0.0,
+				0.0,
+				0.0
+			],
+			"scl": [
+				3.0,
+				3.0,
+				3.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				-6.89942741394043,
+				0.015000476501882076,
+				-2.7739782333374023
+			],
+			"rot": [
+				-0.0,
+				0.0,
+				0.0
+			],
+			"scl": [
+				2.0,
+				2.0,
+				2.0
+			]
+		},
+		{
+			"parent": null,
+			"pos": [
+				-11.781454086303711,
+				0.009999999776482582,
+				-6.212711811065674
+			],
+			"rot": [
+				-0.0,
+				0.0,
+				0.0
+			],
+			"scl": [
+				2.0,
+				2.0,
+				2.0
 			]
 		}
 	]
