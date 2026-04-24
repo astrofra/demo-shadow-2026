@@ -392,6 +392,24 @@ local function look_rotation(from_pos, target_pos, fallback_rot)
 	return hg.ToEuler(hg.Mat3LookAt(safe_normalize(to_target, WORLD_FRONT), WORLD_UP))
 end
 
+local function direction_to_world(world_matrix, local_direction, fallback)
+	local x_axis = safe_normalize(hg.GetX(world_matrix), WORLD_RIGHT)
+	local y_axis = safe_normalize(hg.GetY(world_matrix), WORLD_UP)
+	local z_axis = safe_normalize(hg.GetZ(world_matrix), WORLD_FRONT)
+	return safe_normalize(
+		x_axis * local_direction.x + y_axis * local_direction.y + z_axis * local_direction.z,
+		fallback
+	)
+end
+
+local function normalized_world_basis(world_matrix)
+	return hg.Normalize(hg.Mat3(
+		safe_normalize(hg.GetX(world_matrix), WORLD_RIGHT),
+		safe_normalize(hg.GetY(world_matrix), WORLD_UP),
+		safe_normalize(hg.GetZ(world_matrix), WORLD_FRONT)
+	))
+end
+
 local function set_world_pos_rot(node, position, rotation)
 	local transform = node:GetTransform()
 	local world = transform:GetWorld()
@@ -1289,7 +1307,7 @@ function Controller:_refresh_look_at_angles()
 	local target_position = get_world_position(look_state.target_node)
 	local target_local = transform_point_to_local(head_rest_world, target_position)
 	local planar_distance = math.max(math.sqrt(target_local.x * target_local.x + target_local.z * target_local.z), 0.0001)
-	local yaw = atan2(target_local.x, -target_local.z)
+	local yaw = atan2(-target_local.x, target_local.z)
 	local pitch = atan2(target_local.y, planar_distance)
 
 	look_state.yaw = clamp(yaw, -self.params.look_at_yaw_limit, self.params.look_at_yaw_limit)
@@ -1302,16 +1320,46 @@ function Controller:_apply_look_at_pose()
 		return
 	end
 
-	self:_refresh_look_at_angles()
+	local baseline_world = {}
+	for _, look_key in ipairs({"neck", "head"}) do
+		local look_def = LOOK_NODES[look_key]
+		baseline_world[look_key] = capture_world_matrix(self.view_nodes[look_def.node])
+	end
 
 	for _, look_key in ipairs({"neck", "head"}) do
 		local look_def = LOOK_NODES[look_key]
 		local node = self.view_nodes[look_def.node]
-		local rest_pose = self.rest_pose[look_def.node]
 		local weight = look_def.weight * look_state.blend
-		local rotation_offset = hg.Vec3(-look_state.pitch * weight, look_state.yaw * weight, 0.0)
+		if weight > 0.0 and look_state.target_node ~= nil and look_state.target_node:IsValid() then
+			local current_world = node:GetTransform():GetWorld()
+			local reference_world = baseline_world[look_key]
+			local node_position = hg.GetT(current_world)
+			local target_position = get_world_position(look_state.target_node)
+			local target_local = transform_point_to_local(reference_world, target_position)
+			local planar_distance = math.max(math.sqrt(target_local.x * target_local.x + target_local.z * target_local.z), 0.0001)
+			local yaw = clamp(atan2(-target_local.x, target_local.z), -self.params.look_at_yaw_limit, self.params.look_at_yaw_limit)
+			local pitch = clamp(atan2(target_local.y, planar_distance), self.params.look_at_pitch_down_limit, self.params.look_at_pitch_up_limit)
+			local clamped_local_direction = hg.Vec3(
+				-math.sin(yaw) * math.cos(pitch),
+				math.sin(pitch),
+				math.cos(yaw) * math.cos(pitch)
+			)
+			local target_world_direction = direction_to_world(reference_world, clamped_local_direction, safe_normalize(hg.GetZ(reference_world), WORLD_FRONT))
+			local target_basis = hg.Mat3LookAt(
+				safe_normalize(target_world_direction * -1.0, WORLD_FRONT),
+				safe_normalize(hg.GetY(reference_world), WORLD_UP)
+			)
+			local current_basis = normalized_world_basis(current_world)
+			local current_quat = hg.QuaternionFromMatrix3(current_basis)
+			local target_quat = hg.QuaternionFromMatrix3(target_basis)
+			local blended_basis = hg.ToMatrix3(hg.Normalize(hg.Slerp(current_quat, target_quat, weight)))
 
-		node:GetTransform():SetPosRot(rest_pose.pos, rest_pose.rot + rotation_offset)
+			node:GetTransform():SetWorld(hg.TransformationMat4(
+				node_position,
+				blended_basis,
+				self:_get_world_node_scale(self.rest_pose[look_def.node].scale)
+			))
+		end
 	end
 end
 
@@ -2134,14 +2182,14 @@ local function create_controller(scene, instance_node_name)
 			free_arm_swing_scale = 1.0,
 			hand_lock_blend_duration = 1.0,
 			look_at_blend_duration = 1.0,
-			rotate_step_angle = hg.Deg(10.0),
+			-- rotate_step_angle = hg.Deg(10.0),
 			rotate_arrive_angle = hg.Deg(1.0),
 			rotate_step_pause_duration = 0.12,
 			rotate_motion_weight = 0.22,
 			rotate_step_progress_weight = 1.0,
-			look_at_yaw_limit = hg.Deg(70.0),
-			look_at_pitch_up_limit = hg.Deg(35.0),
-			look_at_pitch_down_limit = hg.Deg(-45.0),
+			look_at_yaw_limit = hg.Deg(40.0),
+			look_at_pitch_up_limit = hg.Deg(20.0),
+			look_at_pitch_down_limit = hg.Deg(-10.0),
 			bend_duration = 2.0,
 			camera_tracking_latency = 0.28,
 			camera_fov_blend_duration = 1.0,
