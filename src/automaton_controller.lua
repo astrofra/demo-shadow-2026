@@ -268,6 +268,17 @@ local function shortest_angle_rad(current, target)
 	return delta - math.pi
 end
 
+local function move_toward_angle(current, target, max_delta)
+	local delta = shortest_angle_rad(current, target)
+	if delta > max_delta then
+		return current + max_delta
+	elseif delta < -max_delta then
+		return current - max_delta
+	end
+
+	return current + delta
+end
+
 local function flatten_xz(value)
 	return hg.Vec3(value.x, 0.0, value.z)
 end
@@ -418,6 +429,30 @@ end
 
 local function scale_vec3(value, scalar)
 	return hg.Vec3(value.x * scalar, value.y * scalar, value.z * scalar)
+end
+
+local function direction_from_yaw_pitch(yaw, pitch)
+	return hg.Vec3(
+		-math.sin(yaw) * math.cos(pitch),
+		math.sin(pitch),
+		math.cos(yaw) * math.cos(pitch)
+	)
+end
+
+local function transform_point_to_basis_local(origin, right, up, forward, point)
+	local offset = point - origin
+	return hg.Vec3(
+		hg.Dot(offset, right),
+		hg.Dot(offset, up),
+		hg.Dot(offset, forward)
+	)
+end
+
+local function direction_from_basis(right, up, forward, local_direction, fallback)
+	return safe_normalize(
+		right * local_direction.x + up * local_direction.y + forward * local_direction.z,
+		fallback
+	)
 end
 
 local function rotate_xz(value, yaw)
@@ -607,7 +642,12 @@ function Controller:_update_hand_lock_blends(dt)
 	for _, side in ipairs({"left", "right"}) do
 		local lock_state = self.hand_locks[side]
 		local blend_target = lock_state.active and 1.0 or 0.0
-		lock_state.blend = move_toward(lock_state.blend, blend_target, dt / self.params.hand_lock_blend_duration)
+		local blend_duration = lock_state.blend_duration or self.params.hand_lock_blend_duration
+		if blend_duration <= 0.0 then
+			lock_state.blend = blend_target
+		else
+			lock_state.blend = move_toward(lock_state.blend, blend_target, dt / blend_duration)
+		end
 
 		if not lock_state.active and lock_state.blend <= 0.0 then
 			lock_state.target_name = nil
@@ -704,12 +744,12 @@ function Controller:PlaceRightHandOnNode(target_name)
 	self:_set_hand_lock("right", target_name)
 end
 
-function Controller:UnlockLeftHand()
-	self:_clear_hand_lock("left")
+function Controller:UnlockLeftHand(duration_sec)
+	self:_clear_hand_lock("left", duration_sec)
 end
 
-function Controller:UnlockRightHand()
-	self:_clear_hand_lock("right")
+function Controller:UnlockRightHand(duration_sec)
+	self:_clear_hand_lock("right", duration_sec)
 end
 
 function Controller:GrabNodeWithLeftHand(node_ref)
@@ -740,12 +780,12 @@ function Controller:SetKneelOffsetY(offset_y, duration_sec)
 	self:_set_kneel_target_offset_y(offset_y, duration_sec)
 end
 
-function Controller:LookAtNode(node_ref)
-	self:_set_look_at_target(node_ref)
+function Controller:LookAtNode(node_ref, stiffness_deg_per_sec)
+	self:_set_look_at_target(node_ref, stiffness_deg_per_sec)
 end
 
-function Controller:ClearLookAt()
-	self:_clear_look_at_target()
+function Controller:ClearLookAt(stiffness_deg_per_sec)
+	self:_clear_look_at_target(stiffness_deg_per_sec)
 end
 
 function Controller:SetCurrentCamera(camera_name, options)
@@ -782,15 +822,35 @@ function Controller:IsRotationDone()
 	return self.rotate_target_yaw == nil
 end
 
-function Controller:_set_hand_lock(side, target_name)
+function Controller:_set_hand_lock(side, target_name, duration_sec)
+	if duration_sec ~= nil then
+		if type(duration_sec) ~= "number" then
+			error("AutomatonController: hand lock duration must be a number")
+		end
+		if duration_sec < 0.0 then
+			error("AutomatonController: hand lock duration must be greater than or equal to 0")
+		end
+	end
+
 	local lock_state = self.hand_locks[side]
+	lock_state.blend_duration = duration_sec or self.params.hand_lock_blend_duration
 	lock_state.target_name = target_name
 	lock_state.target_node = self:_resolve_hand_target(target_name)
 	lock_state.active = true
 end
 
-function Controller:_clear_hand_lock(side)
+function Controller:_clear_hand_lock(side, duration_sec)
+	if duration_sec ~= nil then
+		if type(duration_sec) ~= "number" then
+			error("AutomatonController: hand unlock duration must be a number")
+		end
+		if duration_sec < 0.0 then
+			error("AutomatonController: hand unlock duration must be greater than or equal to 0")
+		end
+	end
+
 	local lock_state = self.hand_locks[side]
+	lock_state.blend_duration = duration_sec or self.params.hand_lock_blend_duration
 	lock_state.active = false
 end
 
@@ -855,14 +915,36 @@ function Controller:_set_kneel_target_offset_y(offset_y, duration_sec)
 	kneel_state.active = true
 end
 
-function Controller:_set_look_at_target(target_name)
+function Controller:_set_look_at_angular_speed(stiffness_deg_per_sec, label, keep_current_when_nil)
 	local look_state = self.look_at_state
+	if stiffness_deg_per_sec == nil then
+		if not keep_current_when_nil then
+			look_state.max_angular_speed = self.params.look_at_max_angular_speed
+		end
+		return
+	end
+
+	if type(stiffness_deg_per_sec) ~= "number" then
+		error(('AutomatonController: %s must be a number'):format(label))
+	end
+
+	if stiffness_deg_per_sec < 0.0 then
+		error(('AutomatonController: %s must be greater than or equal to 0'):format(label))
+	end
+
+	look_state.max_angular_speed = hg.Deg(stiffness_deg_per_sec)
+end
+
+function Controller:_set_look_at_target(target_name, stiffness_deg_per_sec)
+	local look_state = self.look_at_state
+	self:_set_look_at_angular_speed(stiffness_deg_per_sec, "look_at stiffness", false)
 	look_state.target_name = target_name
 	look_state.target_node = self:_resolve_node_ref(target_name)
 	look_state.active = true
 end
 
-function Controller:_clear_look_at_target()
+function Controller:_clear_look_at_target(stiffness_deg_per_sec)
+	self:_set_look_at_angular_speed(stiffness_deg_per_sec, "clear_look_at stiffness", true)
 	self.look_at_state.active = false
 end
 
@@ -875,8 +957,6 @@ function Controller:_update_look_at_blend(dt)
 	if not look_state.active and look_state.blend <= 0.0 then
 		look_state.target_name = nil
 		look_state.target_node = nil
-		look_state.yaw = 0.0
-		look_state.pitch = 0.0
 	end
 end
 
@@ -1331,7 +1411,7 @@ function Controller:_release_hand_object(side_name)
 	self:_clear_held_object_state(normalized_side)
 end
 
-function Controller:_refresh_look_at_angles()
+function Controller:_refresh_look_at_target_node()
 	local look_state = self.look_at_state
 	if look_state.target_name == nil then
 		return
@@ -1349,64 +1429,124 @@ function Controller:_refresh_look_at_angles()
 			return
 		end
 	end
-
-	local head_node = self.view_nodes[LOOK_NODES.head.node]
-	local head_rest_world = head_node:GetTransform():GetWorld()
-	local target_position = get_world_position(look_state.target_node)
-	local target_local = transform_point_to_local(head_rest_world, target_position)
-	local planar_distance = math.max(math.sqrt(target_local.x * target_local.x + target_local.z * target_local.z), 0.0001)
-	local yaw = atan2(-target_local.x, target_local.z)
-	local pitch = atan2(target_local.y, planar_distance)
-
-	look_state.yaw = clamp(yaw, -self.params.look_at_yaw_limit, self.params.look_at_yaw_limit)
-	look_state.pitch = clamp(pitch, self.params.look_at_pitch_down_limit, self.params.look_at_pitch_up_limit)
 end
 
-function Controller:_apply_look_at_pose()
+function Controller:_is_look_at_pose_settled()
 	local look_state = self.look_at_state
-	if look_state.blend <= 0.0 and not look_state.active then
+	local epsilon = hg.Deg(0.25)
+	for _, look_key in ipairs({"neck", "head"}) do
+		local applied = look_state.applied[look_key]
+		local target = look_state.target_angles[look_key]
+		if math.abs(shortest_angle_rad(applied.yaw, target.yaw)) > epsilon then
+			return false
+		end
+		if math.abs(shortest_angle_rad(applied.pitch, target.pitch)) > epsilon then
+			return false
+		end
+	end
+
+	return true
+end
+
+function Controller:_apply_look_at_pose(dt)
+	local look_state = self.look_at_state
+	if look_state.blend <= 0.0 and not look_state.active and self:_is_look_at_pose_settled() then
+		look_state.debug.target_pos = nil
+		for _, look_key in ipairs({"neck", "head"}) do
+			local debug_entry = look_state.debug[look_key]
+			debug_entry.reference_pos = nil
+			debug_entry.target_pos = nil
+			debug_entry.desired_dir = nil
+			debug_entry.applied_dir = nil
+			debug_entry.actual_dir = nil
+		end
 		return
 	end
 
+	look_state.debug.target_pos = nil
 	local baseline_world = {}
 	for _, look_key in ipairs({"neck", "head"}) do
 		local look_def = LOOK_NODES[look_key]
 		baseline_world[look_key] = capture_world_matrix(self.view_nodes[look_def.node])
 	end
 
+	self:_refresh_look_at_target_node()
+
+	local left_shoulder_pos = get_world_position(self.view_nodes["mixamorig_LeftShoulder"])
+	local right_shoulder_pos = get_world_position(self.view_nodes["mixamorig_RightShoulder"])
+	local shoulder_lateral = safe_normalize(right_shoulder_pos - left_shoulder_pos, WORLD_RIGHT)
+	local shoulder_center = (left_shoulder_pos + right_shoulder_pos) * 0.5
+	local head_reference_pos = hg.GetT(baseline_world.head)
+	local torso_up = safe_normalize(head_reference_pos - shoulder_center, WORLD_UP)
+	local torso_forward = safe_normalize(hg.Cross(torso_up, shoulder_lateral), self.current_forward)
+	local torso_right = safe_normalize(hg.Cross(torso_forward, torso_up), shoulder_lateral)
+	local torso_up_orthonormal = safe_normalize(hg.Cross(torso_right, torso_forward), torso_up)
+
 	for _, look_key in ipairs({"neck", "head"}) do
 		local look_def = LOOK_NODES[look_key]
 		local node = self.view_nodes[look_def.node]
+		local debug_entry = look_state.debug[look_key]
+		local target_angles = look_state.target_angles[look_key]
+		target_angles.yaw = 0.0
+		target_angles.pitch = 0.0
+		debug_entry.reference_pos = copy_vec3(hg.GetT(baseline_world[look_key]))
+		debug_entry.target_pos = nil
+		debug_entry.desired_dir = nil
+		debug_entry.applied_dir = nil
+		debug_entry.actual_dir = get_world_forward(node)
+
 		local weight = look_def.weight * look_state.blend
 		if weight > 0.0 and look_state.target_node ~= nil and look_state.target_node:IsValid() then
-			local current_world = node:GetTransform():GetWorld()
-			local reference_world = baseline_world[look_key]
-			local node_position = hg.GetT(current_world)
 			local target_position = get_world_position(look_state.target_node)
-			local target_local = transform_point_to_local(reference_world, target_position)
+			local target_local = transform_point_to_basis_local(
+				debug_entry.reference_pos,
+				torso_right,
+				torso_up_orthonormal,
+				torso_forward,
+				target_position
+			)
 			local planar_distance = math.max(math.sqrt(target_local.x * target_local.x + target_local.z * target_local.z), 0.0001)
 			local yaw = clamp(atan2(-target_local.x, target_local.z), -self.params.look_at_yaw_limit, self.params.look_at_yaw_limit)
 			local pitch = clamp(atan2(target_local.y, planar_distance), self.params.look_at_pitch_down_limit, self.params.look_at_pitch_up_limit)
-			local clamped_local_direction = hg.Vec3(
-				-math.sin(yaw) * math.cos(pitch),
-				math.sin(pitch),
-				math.cos(yaw) * math.cos(pitch)
+			target_angles.yaw = yaw * weight
+			target_angles.pitch = pitch * weight
+			look_state.debug.target_pos = copy_vec3(target_position)
+			debug_entry.target_pos = copy_vec3(target_position)
+			debug_entry.desired_dir = direction_from_basis(
+				torso_right,
+				torso_up_orthonormal,
+				torso_forward,
+				direction_from_yaw_pitch(target_angles.yaw, target_angles.pitch),
+				torso_forward
 			)
-			local target_world_direction = direction_to_world(reference_world, clamped_local_direction, safe_normalize(hg.GetZ(reference_world), WORLD_FRONT))
+		end
+
+		local applied = look_state.applied[look_key]
+		local max_delta = look_state.max_angular_speed * dt
+		applied.yaw = move_toward_angle(applied.yaw, target_angles.yaw, max_delta)
+		applied.pitch = move_toward_angle(applied.pitch, target_angles.pitch, max_delta)
+		debug_entry.applied_dir = direction_from_basis(
+			torso_right,
+			torso_up_orthonormal,
+			torso_forward,
+			direction_from_yaw_pitch(applied.yaw, applied.pitch),
+			torso_forward
+		)
+
+		if math.abs(applied.yaw) > 0.0 or math.abs(applied.pitch) > 0.0 then
+			local node_position = hg.GetT(node:GetTransform():GetWorld())
+			local target_world_direction = debug_entry.applied_dir
 			local target_basis = hg.Mat3LookAt(
-				safe_normalize(target_world_direction * -1.0, WORLD_FRONT),
-				safe_normalize(hg.GetY(reference_world), WORLD_UP)
+				safe_normalize(target_world_direction, WORLD_FRONT),
+				torso_up_orthonormal
 			)
-			local current_basis = normalized_world_basis(current_world)
-			local current_quat = hg.QuaternionFromMatrix3(current_basis)
-			local target_quat = hg.QuaternionFromMatrix3(target_basis)
-			local blended_basis = hg.ToMatrix3(hg.Normalize(hg.Slerp(current_quat, target_quat, weight)))
 
 			node:GetTransform():SetWorld(hg.TransformationMat4(
 				node_position,
-				blended_basis,
+				target_basis,
 				self:_get_world_node_scale(self.rest_pose[look_def.node].scale)
 			))
+			debug_entry.actual_dir = get_world_forward(node)
 		end
 	end
 end
@@ -1440,11 +1580,12 @@ function Controller:_run_action(action)
 			error(('AutomatonController: invalid side for lock_arm: "%s"'):format(tostring(action.side)))
 		end
 	elseif action_type == "unlock_arm" then
+		local duration_sec = read_number_field(action, {"duration", "time"}, "unlock_arm duration")
 		local side = normalize_side(action.side)
 		if side == "left" then
-			self:UnlockLeftHand()
+			self:UnlockLeftHand(duration_sec)
 		elseif side == "right" then
-			self:UnlockRightHand()
+			self:UnlockRightHand(duration_sec)
 		else
 			error(('AutomatonController: invalid side for unlock_arm: "%s"'):format(tostring(action.side)))
 		end
@@ -1476,9 +1617,9 @@ function Controller:_run_action(action)
 			read_number_field(action, {"duration", "time"}, "kneel duration")
 		)
 	elseif action_type == "look_at" then
-		self:LookAtNode(action.target)
+		self:LookAtNode(action.target, read_number_field(action, {"stiffness", "speed", "angular_speed"}, "look_at stiffness"))
 	elseif action_type == "clear_look_at" then
-		self:ClearLookAt()
+		self:ClearLookAt(read_number_field(action, {"stiffness", "speed", "angular_speed"}, "clear_look_at stiffness"))
 	elseif action_type == "camera" or action_type == "set_camera" then
 		self:_run_camera_action(action)
 	else
@@ -1506,9 +1647,9 @@ function Controller:_is_action_complete(action)
 	elseif action_type == "kneel" then
 		return not self.kneel_state.active
 	elseif action_type == "look_at" then
-		return self.look_at_state.blend >= 1.0
+		return self.look_at_state.blend >= 1.0 and self:_is_look_at_pose_settled()
 	elseif action_type == "clear_look_at" then
-		return self.look_at_state.blend <= 0.0
+		return self.look_at_state.blend <= 0.0 and self:_is_look_at_pose_settled()
 	end
 
 	return true
@@ -2148,7 +2289,7 @@ function Controller:Update(dt)
 	self:_apply_spine_bend()
 	self:_apply_arm_pose("left")
 	self:_apply_arm_pose("right")
-	self:_apply_look_at_pose()
+	self:_apply_look_at_pose(dt)
 	self:_apply_grabbed_objects()
 	self:_update_camera_state(dt)
 	self:_update_action_runner()
@@ -2199,6 +2340,7 @@ end
 
 function Controller:GetDebugDrawState()
 	local root_position = copy_vec3(self.instance_node:GetTransform():GetPos())
+	local neck_node = self.view_nodes["mixamorig_Neck"]
 	local hips_node = self.view_nodes["mixamorig_Hips"]
 	local head_node = self.view_nodes["mixamorig_Head"]
 	local left_shoulder_pos = get_world_position(self.view_nodes["mixamorig_LeftShoulder"])
@@ -2207,10 +2349,12 @@ function Controller:GetDebugDrawState()
 	local right_up_leg_pos = get_world_position(self.view_nodes["mixamorig_RightUpLeg"])
 	local target_position = nil
 	local hips_position = get_world_position(hips_node)
+	local neck_position = get_world_position(neck_node)
 	local head_position = get_world_position(head_node)
 	local shoulder_center = (left_shoulder_pos + right_shoulder_pos) * 0.5
 	local pelvis_forward = compute_facing_from_landmarks(left_up_leg_pos, right_up_leg_pos, shoulder_center - hips_position, self.current_forward)
 	local chest_forward = compute_facing_from_landmarks(left_shoulder_pos, right_shoulder_pos, head_position - shoulder_center, self.current_forward)
+	local look_debug = self.look_at_state.debug
 
 	if self.target_node_name ~= nil then
 		local ok, resolved = pcall(function()
@@ -2227,6 +2371,7 @@ function Controller:GetDebugDrawState()
 	return {
 		root_pos = root_position,
 		hips_pos = hips_position,
+		neck_pos = neck_position,
 		head_pos = head_position,
 		target_pos = target_position,
 		current_forward = copy_vec3(self.current_forward),
@@ -2234,6 +2379,17 @@ function Controller:GetDebugDrawState()
 		root_world_forward = get_world_forward_xz(self.instance_node, self.current_forward),
 		hips_forward = pelvis_forward,
 		head_forward = chest_forward,
+		head_actual_forward = get_world_forward(head_node),
+		neck_actual_forward = get_world_forward(neck_node),
+		look_target_pos = look_debug.target_pos ~= nil and copy_vec3(look_debug.target_pos) or nil,
+		look_head_reference_pos = look_debug.head.reference_pos ~= nil and copy_vec3(look_debug.head.reference_pos) or nil,
+		look_head_desired_dir = look_debug.head.desired_dir ~= nil and copy_vec3(look_debug.head.desired_dir) or nil,
+		look_head_applied_dir = look_debug.head.applied_dir ~= nil and copy_vec3(look_debug.head.applied_dir) or nil,
+		look_head_actual_dir = look_debug.head.actual_dir ~= nil and copy_vec3(look_debug.head.actual_dir) or nil,
+		look_neck_reference_pos = look_debug.neck.reference_pos ~= nil and copy_vec3(look_debug.neck.reference_pos) or nil,
+		look_neck_desired_dir = look_debug.neck.desired_dir ~= nil and copy_vec3(look_debug.neck.desired_dir) or nil,
+		look_neck_applied_dir = look_debug.neck.applied_dir ~= nil and copy_vec3(look_debug.neck.applied_dir) or nil,
+		look_neck_actual_dir = look_debug.neck.actual_dir ~= nil and copy_vec3(look_debug.neck.actual_dir) or nil,
 		left_foot_pos = copy_vec3(self.feet.left.current_world),
 		right_foot_pos = copy_vec3(self.feet.right.current_world),
 		support_side = self.support_side,
@@ -2308,6 +2464,7 @@ local function create_controller(scene, instance_node_name)
 			free_arm_swing_scale = 1.0,
 			hand_lock_blend_duration = 1.0,
 			look_at_blend_duration = 1.0,
+			look_at_max_angular_speed = hg.Deg(90.0),
 			-- rotate_step_angle = hg.Deg(10.0),
 			rotate_arrive_angle = hg.Deg(1.0),
 			rotate_step_pause_duration = 0.12,
@@ -2330,8 +2487,8 @@ local function create_controller(scene, instance_node_name)
 			arm_elbow_outward_bias = 0.85
 		},
 		hand_locks = {
-			left = {active = false, blend = 0.0, target_name = nil, target_node = nil},
-			right = {active = false, blend = 0.0, target_name = nil, target_node = nil}
+			left = {active = false, blend = 0.0, blend_duration = 1.0, target_name = nil, target_node = nil},
+			right = {active = false, blend = 0.0, blend_duration = 1.0, target_name = nil, target_node = nil}
 		},
 		free_arm_amplitude = {
 			left = 1.0,
@@ -2348,10 +2505,22 @@ local function create_controller(scene, instance_node_name)
 		look_at_state = {
 			active = false,
 			blend = 0.0,
+			max_angular_speed = hg.Deg(90.0),
 			target_name = nil,
 			target_node = nil,
-			yaw = 0.0,
-			pitch = 0.0
+			target_angles = {
+				neck = {yaw = 0.0, pitch = 0.0},
+				head = {yaw = 0.0, pitch = 0.0}
+			},
+			applied = {
+				neck = {yaw = 0.0, pitch = 0.0},
+				head = {yaw = 0.0, pitch = 0.0}
+			},
+			debug = {
+				target_pos = nil,
+				neck = {reference_pos = nil, desired_dir = nil, applied_dir = nil, actual_dir = nil},
+				head = {reference_pos = nil, desired_dir = nil, applied_dir = nil, actual_dir = nil}
+			}
 		},
 		bend_state = {
 			current = 0.0,

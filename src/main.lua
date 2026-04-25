@@ -109,18 +109,46 @@ local function append_automaton_debug_lines(lines, automaton_controller)
 	local root_world_origin = root_origin + hg.Vec3(0.0, 0.08, 0.0)
 	local desired_origin = root_origin + hg.Vec3(0.0, 0.16, 0.0)
 	local hips_origin = debug_draw_state.hips_pos + hg.Vec3(0.0, 0.03, 0.0)
+	local neck_origin = debug_draw_state.neck_pos + hg.Vec3(0.0, 0.04, 0.0)
 	local head_origin = debug_draw_state.head_pos + hg.Vec3(0.0, 0.03, 0.0)
 
 	push_line(lines, root_logic_origin, root_logic_origin + debug_draw_state.current_forward * 1.3, hg.Color(1.0, 0.9, 0.1, 1.0))
 	push_line(lines, root_world_origin, root_world_origin + debug_draw_state.root_world_forward * 1.15, hg.Color(1.0, 0.5, 0.0, 1.0))
 	push_line(lines, desired_origin, desired_origin + debug_draw_state.desired_direction * 1.1, hg.Color(1.0, 0.2, 0.8, 1.0))
 	push_line(lines, hips_origin, hips_origin + debug_draw_state.hips_forward * 0.8, hg.Color(0.0, 1.0, 1.0, 1.0))
-	push_line(lines, head_origin, head_origin + debug_draw_state.head_forward * 0.65, hg.Color(0.2, 1.0, 0.4, 1.0))
+	push_line(lines, head_origin, head_origin + debug_draw_state.head_forward * 0.65, hg.Color(0.2, 1.0, 0.4, 0.45))
+	push_line(lines, neck_origin, neck_origin + debug_draw_state.neck_actual_forward * 0.55, hg.Color(0.0, 0.9, 0.2, 1.0))
+	push_line(lines, head_origin, head_origin + debug_draw_state.head_actual_forward * 0.65, hg.Color(0.1, 1.0, 0.1, 1.0))
 	push_line(lines, debug_draw_state.left_foot_pos, debug_draw_state.right_foot_pos, hg.Color(0.25, 0.6, 1.0, 1.0))
 
 	if debug_draw_state.target_pos ~= nil then
 		local target_pos = hg.Vec3(debug_draw_state.target_pos.x, desired_origin.y, debug_draw_state.target_pos.z)
 		push_line(lines, desired_origin, target_pos, hg.Color(1.0, 1.0, 1.0, 1.0))
+	end
+
+	if debug_draw_state.look_target_pos ~= nil then
+		push_line(lines, neck_origin, debug_draw_state.look_target_pos, hg.Color(1.0, 0.4, 0.4, 0.6))
+		push_line(lines, head_origin, debug_draw_state.look_target_pos, hg.Color(1.0, 0.7, 0.2, 0.6))
+	end
+
+	if debug_draw_state.look_neck_desired_dir ~= nil then
+		push_line(lines, neck_origin, neck_origin + debug_draw_state.look_neck_desired_dir * 0.6, hg.Color(1.0, 0.85, 0.1, 1.0))
+	end
+	if debug_draw_state.look_neck_applied_dir ~= nil then
+		push_line(lines, neck_origin, neck_origin + debug_draw_state.look_neck_applied_dir * 0.72, hg.Color(0.2, 0.75, 1.0, 1.0))
+	end
+	if debug_draw_state.look_neck_actual_dir ~= nil then
+		push_line(lines, neck_origin, neck_origin + debug_draw_state.look_neck_actual_dir * 0.84, hg.Color(0.0, 1.0, 0.25, 1.0))
+	end
+
+	if debug_draw_state.look_head_desired_dir ~= nil then
+		push_line(lines, head_origin, head_origin + debug_draw_state.look_head_desired_dir * 0.7, hg.Color(1.0, 0.9, 0.15, 1.0))
+	end
+	if debug_draw_state.look_head_applied_dir ~= nil then
+		push_line(lines, head_origin, head_origin + debug_draw_state.look_head_applied_dir * 0.82, hg.Color(0.25, 0.8, 1.0, 1.0))
+	end
+	if debug_draw_state.look_head_actual_dir ~= nil then
+		push_line(lines, head_origin, head_origin + debug_draw_state.look_head_actual_dir * 0.94, hg.Color(0.0, 1.0, 0.3, 1.0))
 	end
 end
 

@@ -102,14 +102,16 @@ Behavior:
 ```lua
 ctrl:PlaceLeftHandOnNode(target_name)
 ctrl:PlaceRightHandOnNode(target_name)
-ctrl:UnlockLeftHand()
-ctrl:UnlockRightHand()
+ctrl:UnlockLeftHand(duration_sec)
+ctrl:UnlockRightHand(duration_sec)
 ```
 
 Behavior:
 
 - locking a hand blends from free swing to IK hand placement over `1.0` second
-- unlocking blends back to procedural walk swing over `1.0` second
+- unlocking blends back to procedural walk swing over `duration_sec`
+- if `duration_sec` is omitted, unlock uses the default `1.0` second transition
+- `duration_sec = 0.0` makes the unlock immediate
 - left and right hands are fully independent
 - a locked hand keeps following its target until it is explicitly unlocked
 
@@ -157,16 +159,20 @@ If cross-instance parenting does not hold at runtime, it falls back to a host-sc
 ### Look-At
 
 ```lua
-ctrl:LookAtNode(node_ref)
-ctrl:ClearLookAt()
+ctrl:LookAtNode(node_ref, stiffness)
+ctrl:ClearLookAt(stiffness)
 ```
 
 Behavior:
 
 - `LookAtNode` blends into a persistent tracking state over `1.0` second
+- optional `stiffness` limits the neck/head angular speed in degrees per second
+- if `stiffness` is omitted, look-at uses the default `90 degrees/sec`
 - the target is the target node position, not its orientation
 - after the blend, the neck and head keep tracking the target until `ClearLookAt()` is called
 - `ClearLookAt()` blends back to the captured rest pose over `1.0` second
+- `ClearLookAt()` accepts the same optional `stiffness` parameter
+- if `ClearLookAt()` omits `stiffness`, it reuses the currently active look-at stiffness
 
 Current look distribution:
 
@@ -175,9 +181,15 @@ Current look distribution:
 
 Current angular limits:
 
-- yaw: `+-70 degrees`
-- pitch up: `+35 degrees`
-- pitch down: `-45 degrees`
+- target clamp before distribution: yaw `+-40 degrees`
+- target clamp before distribution: pitch up `+20 degrees`
+- target clamp before distribution: pitch down `-10 degrees`
+- effective neck contribution at full blend: yaw `+-16 degrees`
+- effective neck contribution at full blend: pitch up `+8 degrees`
+- effective neck contribution at full blend: pitch down `-4 degrees`
+- effective head contribution at full blend: yaw `+-24 degrees`
+- effective head contribution at full blend: pitch up `+12 degrees`
+- effective head contribution at full blend: pitch down `-6 degrees`
 - roll: none
 
 The rest pose is captured from the automaton rig when the controller is created.
@@ -277,6 +289,7 @@ For example, `lock arm` and `lock-arm` will be interpreted as `lock_arm`.
 
 ```lua
 {type = "unlock_arm", side = "left"}
+{type = "unlock_arm", side = "left", duration = 1.0}
 ```
 
 `arm_amplitude`
@@ -316,12 +329,14 @@ For example, `lock arm` and `lock-arm` will be interpreted as `lock_arm`.
 
 ```lua
 {type = "look_at", target = "path_C"}
+{type = "look_at", target = "path_C", stiffness = 90}
 ```
 
 `clear_look_at`
 
 ```lua
 {type = "clear_look_at"}
+{type = "clear_look_at", stiffness = 90}
 ```
 
 `camera`
@@ -377,19 +392,37 @@ The implementation lowercases the input, so `Left` and `RIGHT` are also accepted
 - the animation is blocking
 - the applied offset is clamped by leg reach so the feet stay on their IK plant targets
 
+`unlock_arm` details:
+
+- `side` is required
+- `duration` or `time` is optional and expressed in seconds
+- if omitted, duration defaults to `1.0`
+- `0.0` unlocks immediately
+- the action is blocking until the unlock blend reaches `0.0`
+
+`look_at` and `clear_look_at` details:
+
+- `look_at` requires `target`
+- `stiffness`, `speed`, or `angular_speed` is optional
+- the value is interpreted in degrees per second
+- if omitted, stiffness defaults to `90`
+- `clear_look_at` reuses the current stiffness when omitted
+- the controller clamps the gaze target before distribution to neck/head
+- the action stays blocking until both the blend and the angular settling are complete
+
 ### Action Completion Semantics
 
 - `move`: completes when `IsAtTarget()` becomes true
 - `rotate`: completes when `IsRotationDone()` becomes true
 - `lock_arm`: completes when the blend reaches `1.0`
-- `unlock_arm`: completes when the blend reaches `0.0`
+- `unlock_arm`: completes when the blend reaches `0.0` after the requested duration
 - `arm_amplitude`: completes immediately after updating the selected side amplitude
 - `grab`: completes immediately after the parenting operation
 - `release`: completes immediately after the reparenting operation
 - `bend`: completes when the 2-second torso bend animation reaches its target
 - `kneel`: completes when the pelvis offset animation reaches its target duration
-- `look_at`: completes when the look blend reaches `1.0`
-- `clear_look_at`: completes when the look blend reaches `0.0`
+- `look_at`: completes when the look blend reaches `1.0` and the neck/head have settled to the requested look target
+- `clear_look_at`: completes when the look blend reaches `0.0` and the neck/head have settled back to rest
 - `camera`: completes immediately after changing the camera state
 
 ## Movement and Rotation Semantics
