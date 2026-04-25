@@ -834,9 +834,22 @@ function Controller:_set_kneel_target_offset_y(offset_y, duration_sec)
 		end
 	end
 
+	self:_refresh_instance_scale()
+
 	local kneel_state = self.kneel_state
-	kneel_state.start = kneel_state.applied
-	kneel_state.target = offset_y
+	local current_offset_y = kneel_state.applied
+	local target_offset_y = offset_y
+	local scale_y = self.instance_scale.y
+
+	if math.abs(scale_y) > 0.00001 then
+		local min_delta_world_y, max_delta_world_y = self:_get_hips_reach_delta_world_y_limits()
+		local requested_delta_world_y = (offset_y - current_offset_y) * scale_y
+		local clamped_delta_world_y = clamp(requested_delta_world_y, min_delta_world_y, max_delta_world_y)
+		target_offset_y = current_offset_y + clamped_delta_world_y / scale_y
+	end
+
+	kneel_state.start = current_offset_y
+	kneel_state.target = target_offset_y
 	kneel_state.elapsed = 0.0
 	kneel_state.duration = duration_sec or self.params.kneel_duration
 	kneel_state.active = true
@@ -1913,7 +1926,7 @@ function Controller:_update_rotate_motion(dt)
 	return 0.0
 end
 
-function Controller:_compute_hips_reach_clamp_delta_world_y()
+function Controller:_get_hips_reach_delta_world_y_limits()
 	local min_delta_world_y = -math.huge
 	local max_delta_world_y = math.huge
 
@@ -1947,14 +1960,10 @@ function Controller:_compute_hips_reach_clamp_delta_world_y()
 	end
 
 	if min_delta_world_y > max_delta_world_y then
-		if math.abs(min_delta_world_y) <= math.abs(max_delta_world_y) then
-			return min_delta_world_y
-		end
-
-		return max_delta_world_y
+		return 0.0, 0.0
 	end
 
-	return clamp(0.0, min_delta_world_y, max_delta_world_y)
+	return min_delta_world_y, max_delta_world_y
 end
 
 function Controller:_apply_hips_pose()
@@ -1973,20 +1982,7 @@ function Controller:_apply_hips_pose()
 
 	hips_transform:SetPosRot(desired_pos, hips_rest.rot)
 
-	local scale_y = self.instance_scale.y
-	if math.abs(requested_kneel_offset) > 0.000001 and math.abs(scale_y) > 0.00001 then
-		-- Keep both feet plant targets reachable before solving the leg IK.
-		local delta_world_y = self:_compute_hips_reach_clamp_delta_world_y()
-		if math.abs(delta_world_y) > 0.000001 then
-			desired_pos.y = desired_pos.y + delta_world_y / scale_y
-			hips_transform:SetPosRot(desired_pos, hips_rest.rot)
-		end
-	end
-
 	self.kneel_state.applied = desired_pos.y - base_y
-	if not self.kneel_state.active then
-		self.kneel_state.current = self.kneel_state.applied
-	end
 end
 
 function Controller:_apply_leg_pose(side_name)
