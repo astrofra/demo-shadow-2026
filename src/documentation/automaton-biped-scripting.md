@@ -9,6 +9,7 @@ The controller combines several orthogonal subsystems:
 - locomotion on the XZ plane
 - in-place rotation by discrete turning steps
 - independent arm lock and unlock blending
+- persistent pelvis height offset with leg IK foot planting
 - object grabbing and releasing per hand
 - persistent head and neck look-at
 - persistent scripted camera selection and tracking
@@ -111,6 +112,24 @@ Behavior:
 - unlocking blends back to procedural walk swing over `1.0` second
 - left and right hands are fully independent
 - a locked hand keeps following its target until it is explicitly unlocked
+
+### Body Pose
+
+```lua
+ctrl:SetFreeArmAmplitude(side, amplitude)
+ctrl:SetBendDegrees(degrees)
+ctrl:SetKneelOffsetY(offset_y, duration_sec)
+```
+
+Behavior:
+
+- `SetFreeArmAmplitude` clamps `amplitude` between `0.0` and `1.0`
+- `SetBendDegrees` animates a persistent torso bend over `2.0` seconds
+- `SetKneelOffsetY` animates a persistent pelvis Y offset over `duration_sec`
+- if `duration_sec` is omitted, `SetKneelOffsetY` uses the default `1.0` second transition
+- negative `offset_y` lowers the pelvis and bends the legs
+- positive `offset_y` raises the pelvis again
+- feet stay planted through the existing leg IK system; the applied offset is clamped if leg reach would be exceeded
 
 ### Object Grabbing
 
@@ -224,6 +243,7 @@ Canonical action types:
 - `grab`
 - `release`
 - `bend`
+- `kneel`
 - `look_at`
 - `clear_look_at`
 - `camera`
@@ -285,6 +305,13 @@ For example, `lock arm` and `lock-arm` will be interpreted as `lock_arm`.
 {type = "bend", degrees = -10}
 ```
 
+`kneel`
+
+```lua
+{type = "kneel", offset_y = -0.12, duration = 0.8}
+{type = "kneel", value = 0.0, duration = 0.6}
+```
+
 `look_at`
 
 ```lua
@@ -339,6 +366,17 @@ The implementation lowercases the input, so `Left` and `RIGHT` are also accepted
 - the bend is distributed across `mixamorig_Spine`, `mixamorig_Spine1`, and `mixamorig_Spine2`
 - the bend animation is blocking and lasts `2.0` seconds
 
+`kneel` details:
+
+- `offset_y`, `offset`, `value`, or `y` is required
+- the value is interpreted as a pelvis local Y offset
+- negative values lower the pelvis
+- positive values raise the pelvis again
+- `duration` or `time` controls the kneel animation length in seconds
+- if omitted, duration defaults to `1.0`
+- the animation is blocking
+- the applied offset is clamped by leg reach so the feet stay on their IK plant targets
+
 ### Action Completion Semantics
 
 - `move`: completes when `IsAtTarget()` becomes true
@@ -349,6 +387,7 @@ The implementation lowercases the input, so `Left` and `RIGHT` are also accepted
 - `grab`: completes immediately after the parenting operation
 - `release`: completes immediately after the reparenting operation
 - `bend`: completes when the 2-second torso bend animation reaches its target
+- `kneel`: completes when the pelvis offset animation reaches its target duration
 - `look_at`: completes when the look blend reaches `1.0`
 - `clear_look_at`: completes when the look blend reaches `0.0`
 - `camera`: completes immediately after changing the camera state
@@ -392,6 +431,7 @@ Subsystems are persistent by design.
 - rotation persists until the facing target is reached or another locomotion command overrides it
 - a hand lock persists until that hand is unlocked
 - a held object persists until that hand releases it
+- a kneel offset persists until another `kneel` command overrides it
 - look-at persists until `ClearLookAt()` is called
 - camera selection, camera tracking mode, and steady-cam mode persist until another camera command overrides them
 
@@ -475,6 +515,10 @@ Current fields:
 - `rotation_target_active`
 - `current_speed`
 - `gait_drive`
+- `bend_deg`
+- `kneel_offset_y`
+- `left_arm_amplitude`
+- `right_arm_amplitude`
 - `support_side`
 - `step_progress`
 - `step_pause_timer`

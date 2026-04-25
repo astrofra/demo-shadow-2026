@@ -736,6 +736,10 @@ function Controller:SetBendDegrees(degrees)
 	self:_set_bend_target_deg(degrees)
 end
 
+function Controller:SetKneelOffsetY(offset_y, duration_sec)
+	self:_set_kneel_target_offset_y(offset_y, duration_sec)
+end
+
 function Controller:LookAtNode(node_ref)
 	self:_set_look_at_target(node_ref)
 end
@@ -814,6 +818,28 @@ function Controller:_set_bend_target_deg(degrees)
 	bend_state.elapsed = 0.0
 	bend_state.duration = self.params.bend_duration
 	bend_state.active = true
+end
+
+function Controller:_set_kneel_target_offset_y(offset_y, duration_sec)
+	if type(offset_y) ~= "number" then
+		error("AutomatonController: kneel offset_y must be a number")
+	end
+
+	if duration_sec ~= nil then
+		if type(duration_sec) ~= "number" then
+			error("AutomatonController: kneel duration must be a number")
+		end
+		if duration_sec < 0.0 then
+			error("AutomatonController: kneel duration must be greater than or equal to 0")
+		end
+	end
+
+	local kneel_state = self.kneel_state
+	kneel_state.start = kneel_state.applied
+	kneel_state.target = offset_y
+	kneel_state.elapsed = 0.0
+	kneel_state.duration = duration_sec or self.params.kneel_duration
+	kneel_state.active = true
 end
 
 function Controller:_set_look_at_target(target_name)
@@ -1431,6 +1457,11 @@ function Controller:_run_action(action)
 		self:SetFreeArmAmplitude(action.side, read_number_field(action, {"value", "amplitude"}, "arm_amplitude value"))
 	elseif action_type == "bend" then
 		self:SetBendDegrees(read_number_field(action, {"value", "degrees", "angle"}, "bend value"))
+	elseif action_type == "kneel" then
+		self:SetKneelOffsetY(
+			read_number_field(action, {"offset_y", "offset", "value", "y"}, "kneel offset_y"),
+			read_number_field(action, {"duration", "time"}, "kneel duration")
+		)
 	elseif action_type == "look_at" then
 		self:LookAtNode(action.target)
 	elseif action_type == "clear_look_at" then
@@ -1459,6 +1490,8 @@ function Controller:_is_action_complete(action)
 		return true
 	elseif action_type == "bend" then
 		return not self.bend_state.active
+	elseif action_type == "kneel" then
+		return not self.kneel_state.active
 	elseif action_type == "look_at" then
 		return self.look_at_state.blend >= 1.0
 	elseif action_type == "clear_look_at" then
@@ -1530,6 +1563,28 @@ function Controller:_update_bend_state(dt)
 	if alpha >= 1.0 then
 		bend_state.current = bend_state.target
 		bend_state.active = false
+	end
+end
+
+function Controller:_update_kneel_state(dt)
+	local kneel_state = self.kneel_state
+	if not kneel_state.active then
+		return
+	end
+
+	if kneel_state.duration <= 0.0 then
+		kneel_state.current = kneel_state.target
+		kneel_state.active = false
+		return
+	end
+
+	kneel_state.elapsed = math.min(kneel_state.elapsed + dt, kneel_state.duration)
+	local alpha = clamp(kneel_state.elapsed / kneel_state.duration, 0.0, 1.0)
+	kneel_state.current = kneel_state.start + (kneel_state.target - kneel_state.start) * alpha
+
+	if alpha >= 1.0 then
+		kneel_state.current = kneel_state.target
+		kneel_state.active = false
 	end
 end
 
@@ -1858,17 +1913,80 @@ function Controller:_update_rotate_motion(dt)
 	return 0.0
 end
 
+function Controller:_compute_hips_reach_clamp_delta_world_y()
+	local min_delta_world_y = -math.huge
+	local max_delta_world_y = math.huge
+
+	for _, side_name in ipairs({"left", "right"}) do
+		local side = LEG_SIDES[side_name]
+		local upper_world = get_world_position(self.view_nodes[side.upper])
+		local foot_target = self.feet[side_name].current_world
+		local leg = self.leg_lengths[side_name]
+		local upper_len = leg.upper * self.uniform_scale
+		local lower_len = leg.lower * self.uniform_scale
+		local min_reach = math.abs(upper_len - lower_len) + 0.0001
+		local max_reach = math.max(upper_len + lower_len - 0.0001, min_reach)
+		local horizontal = flatten_xz(upper_world - foot_target)
+		local horizontal_sq = hg.Dot(horizontal, horizontal)
+		local min_vertical = math.sqrt(math.max(min_reach * min_reach - horizontal_sq, 0.0))
+		local max_vertical = math.sqrt(math.max(max_reach * max_reach - horizontal_sq, 0.0))
+		local sign = upper_world.y >= foot_target.y and 1.0 or -1.0
+		local leg_min_y
+		local leg_max_y
+
+		if sign >= 0.0 then
+			leg_min_y = foot_target.y + min_vertical
+			leg_max_y = foot_target.y + max_vertical
+		else
+			leg_min_y = foot_target.y - max_vertical
+			leg_max_y = foot_target.y - min_vertical
+		end
+
+		min_delta_world_y = math.max(min_delta_world_y, leg_min_y - upper_world.y)
+		max_delta_world_y = math.min(max_delta_world_y, leg_max_y - upper_world.y)
+	end
+
+	if min_delta_world_y > max_delta_world_y then
+		if math.abs(min_delta_world_y) <= math.abs(max_delta_world_y) then
+			return min_delta_world_y
+		end
+
+		return max_delta_world_y
+	end
+
+	return clamp(0.0, min_delta_world_y, max_delta_world_y)
+end
+
 function Controller:_apply_hips_pose()
 	local hips_transform = self.view_nodes["mixamorig_Hips"]:GetTransform()
 	local hips_rest = self.rest_pose["mixamorig_Hips"]
 	local support_sign = LEG_SIDES[self.support_side].sign
 	local sway = self.params.hips_sway * support_sign * self.motion_weight
 	local bob = math.sin(self.step_progress * math.pi) * self.params.hips_bob * self.motion_weight
-
-	hips_transform:SetPosRot(
-		hg.Vec3(hips_rest.pos.x + sway, hips_rest.pos.y - bob, hips_rest.pos.z),
-		hips_rest.rot
+	local base_y = hips_rest.pos.y - bob
+	local requested_kneel_offset = self.kneel_state.current
+	local desired_pos = hg.Vec3(
+		hips_rest.pos.x + sway,
+		base_y + requested_kneel_offset,
+		hips_rest.pos.z
 	)
+
+	hips_transform:SetPosRot(desired_pos, hips_rest.rot)
+
+	local scale_y = self.instance_scale.y
+	if math.abs(requested_kneel_offset) > 0.000001 and math.abs(scale_y) > 0.00001 then
+		-- Keep both feet plant targets reachable before solving the leg IK.
+		local delta_world_y = self:_compute_hips_reach_clamp_delta_world_y()
+		if math.abs(delta_world_y) > 0.000001 then
+			desired_pos.y = desired_pos.y + delta_world_y / scale_y
+			hips_transform:SetPosRot(desired_pos, hips_rest.rot)
+		end
+	end
+
+	self.kneel_state.applied = desired_pos.y - base_y
+	if not self.kneel_state.active then
+		self.kneel_state.current = self.kneel_state.applied
+	end
 end
 
 function Controller:_apply_leg_pose(side_name)
@@ -2029,6 +2147,7 @@ function Controller:Update(dt)
 	self:_update_hand_lock_blends(dt)
 	self:_update_look_at_blend(dt)
 	self:_update_bend_state(dt)
+	self:_update_kneel_state(dt)
 	self:_apply_walk_pose()
 	self:_apply_spine_bend()
 	self:_apply_arm_pose("left")
@@ -2061,6 +2180,7 @@ function Controller:GetDebugState()
 		current_speed = self.current_speed,
 		gait_drive = self.gait_drive,
 		bend_deg = math.deg(self.bend_state.current),
+		kneel_offset_y = self.kneel_state.applied,
 		left_arm_amplitude = self.free_arm_amplitude.left,
 		right_arm_amplitude = self.free_arm_amplitude.right,
 		support_side = self.support_side,
@@ -2201,6 +2321,7 @@ local function create_controller(scene, instance_node_name)
 			look_at_pitch_up_limit = hg.Deg(20.0),
 			look_at_pitch_down_limit = hg.Deg(-10.0),
 			bend_duration = 2.0,
+			kneel_duration = 1.0,
 			camera_tracking_latency = 0.28,
 			camera_fov_blend_duration = 1.0,
 			camera_steady_distance = 4.0,
@@ -2242,6 +2363,15 @@ local function create_controller(scene, instance_node_name)
 			target = 0.0,
 			elapsed = 0.0,
 			duration = 2.0,
+			active = false
+		},
+		kneel_state = {
+			current = 0.0,
+			applied = 0.0,
+			start = 0.0,
+			target = 0.0,
+			elapsed = 0.0,
+			duration = 1.0,
 			active = false
 		},
 		camera_state = {

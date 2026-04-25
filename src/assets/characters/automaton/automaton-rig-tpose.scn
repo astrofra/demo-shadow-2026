@@ -3659,9 +3659,9 @@
 		"clear_color": true,
 		"clear_z": true,
 		"color": [
-			0,
-			0,
-			0,
+			41,
+			41,
+			41,
 			255
 		]
 	},
@@ -3710,6 +3710,9 @@
 		},
 		{
 			"name": "props/watering_can/watering_can.scn"
+		},
+		{
+			"name": "props/square_shadow/round_shadow.scn"
 		}
 	],
 	"key_values": null,
@@ -4291,6 +4294,19 @@
 			"disabled": false,
 			"idx": 47,
 			"name": "GrabNodeLeft"
+		},
+		{
+			"components": [
+				48,
+				4294967295,
+				4294967295,
+				4294967295,
+				4294967295
+			],
+			"disabled": false,
+			"idx": 50,
+			"instance": 2,
+			"name": "round_shadow"
 		}
 	],
 	"objects": [
@@ -5471,6 +5487,24 @@
 				1.0,
 				1.0000001192092896,
 				0.9999998807907104
+			]
+		},
+		{
+			"parent": 43,
+			"pos": [
+				0.0,
+				0.006690502166748047,
+				0.0
+			],
+			"rot": [
+				-4.656948021874996e-06,
+				-179.99998474121094,
+				-179.99998474121094
+			],
+			"scl": [
+				0.2749999761581421,
+				0.2750000059604645,
+				0.2749999463558197
 			]
 		}
 	]
