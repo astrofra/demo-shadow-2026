@@ -1506,7 +1506,9 @@ function Controller:_apply_look_at_pose(dt)
 				target_position
 			)
 			local planar_distance = math.max(math.sqrt(target_local.x * target_local.x + target_local.z * target_local.z), 0.0001)
-			local yaw = clamp(atan2(-target_local.x, target_local.z), -self.params.look_at_yaw_limit, self.params.look_at_yaw_limit)
+			-- Neck/head yaw on this rig is mirrored relative to the controller's
+			-- locomotion yaw convention, so use the opposite lateral sign here.
+			local yaw = clamp(atan2(target_local.x, target_local.z), -self.params.look_at_yaw_limit, self.params.look_at_yaw_limit)
 			local pitch = clamp(atan2(target_local.y, planar_distance), self.params.look_at_pitch_down_limit, self.params.look_at_pitch_up_limit)
 			target_angles.yaw = yaw * weight
 			target_angles.pitch = pitch * weight
@@ -1536,6 +1538,9 @@ function Controller:_apply_look_at_pose(dt)
 		if math.abs(applied.yaw) > 0.0 or math.abs(applied.pitch) > 0.0 then
 			local node_position = hg.GetT(node:GetTransform():GetWorld())
 			local target_world_direction = debug_entry.applied_dir
+			-- `target_world_direction` is already built in the automaton's logical
+			-- forward convention (-Z for the character). Flipping it here inverts
+			-- front/back once more and makes the head look behind the target.
 			local target_basis = hg.Mat3LookAt(
 				safe_normalize(target_world_direction, WORLD_FRONT),
 				torso_up_orthonormal
