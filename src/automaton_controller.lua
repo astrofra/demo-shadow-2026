@@ -814,6 +814,14 @@ function Controller:ReleaseRightHandObject()
 	self:_release_hand_object("right")
 end
 
+function Controller:UngrabLeftHandObject()
+	self:_ungrab_hand_object("left")
+end
+
+function Controller:UngrabRightHandObject()
+	self:_ungrab_hand_object("right")
+end
+
 function Controller:SetFreeArmAmplitude(side_name, amplitude)
 	self:_set_free_arm_amplitude(side_name, amplitude)
 end
@@ -1473,6 +1481,26 @@ function Controller:_release_hand_object(side_name)
 	self:_clear_held_object_state(normalized_side)
 end
 
+function Controller:_ungrab_hand_object(side_name)
+	local normalized_side = normalize_side(side_name)
+	if normalized_side == nil then
+		error(('AutomatonController: invalid hand side "%s"'):format(tostring(side_name)))
+	end
+
+	local held = self.held_objects[normalized_side]
+	if held.node == nil or not held.node:IsValid() then
+		self:_clear_held_object_state(normalized_side)
+		return
+	end
+
+	local transform = held.node:GetTransform()
+	local world = capture_world_matrix(held.node)
+
+	transform:ClearParent()
+	transform:SetWorld(world)
+	self:_clear_held_object_state(normalized_side)
+end
+
 function Controller:_refresh_look_at_target_node()
 	local look_state = self.look_at_state
 	if look_state.target_name == nil then
@@ -1917,6 +1945,15 @@ function Controller:_run_action(action)
 		else
 			error(('AutomatonController: invalid side for release: "%s"'):format(tostring(action.side)))
 		end
+	elseif action_type == "ungrab" then
+		local side = normalize_side(action.side)
+		if side == "left" then
+			self:UngrabLeftHandObject()
+		elseif side == "right" then
+			self:UngrabRightHandObject()
+		else
+			error(('AutomatonController: invalid side for ungrab: "%s"'):format(tostring(action.side)))
+		end
 	elseif action_type == "arm_amplitude" then
 		self:SetFreeArmAmplitude(action.side, read_number_field(action, {"value", "amplitude"}, "arm_amplitude value"))
 	elseif action_type == "bend" then
@@ -1954,7 +1991,7 @@ function Controller:_is_action_complete(action)
 	elseif action_type == "unlock_arm" then
 		local side = normalize_side(action.side)
 		return side ~= nil and self.hand_locks[side].blend <= 0.0
-	elseif action_type == "grab" or action_type == "release" or action_type == "camera" or action_type == "set_camera"
+	elseif action_type == "grab" or action_type == "release" or action_type == "ungrab" or action_type == "camera" or action_type == "set_camera"
 		or action_type == "arm_amplitude" or action_type == "sound"
 		or action_type == "instance_animation" or action_type == "instance_anim"
 		or action_type == "node_animation" or action_type == "node_anim" then

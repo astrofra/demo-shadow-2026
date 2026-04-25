@@ -34,7 +34,8 @@ local actions = {
 	{type = "instance_animation", id = "phone_ring_anim", node = "telephone_speaker", animation = "ring", loop = true},
 	{type = "sound", id = "phone_ring_audio", asset = "audio/ring.ogg", loop = true},
 	{type = "camera", camera = "Camera", steady_cam = {target = "automaton-rig-tpose", distance = 3.5, angle = -120, offset = {0.0, 1.5, 0.0}}},
-    {type = "rotate", target = "path_4"},
+	{type = "ungrab", side = "right"},
+	{type = "rotate", target = "path_4"},
     {type = "move", start = "path_3", target = "path_4"},
 	{type = "sound", id = "phone_ring_audio", stop = true},
 	{type = "instance_animation", id = "phone_ring_anim", animation = "still"}

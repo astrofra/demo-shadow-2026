@@ -10,7 +10,7 @@ The controller combines several orthogonal subsystems:
 - in-place rotation by discrete turning steps
 - independent arm lock and unlock blending
 - persistent pelvis height offset with leg IK foot planting
-- object grabbing and releasing per hand
+- object grabbing with release and ungrab per hand
 - persistent head and neck look-at
 - persistent scripted camera selection and tracking
 - non-blocking keyed sound playback and keyed instance animation playback
@@ -141,6 +141,8 @@ ctrl:GrabNodeWithLeftHand(node_ref)
 ctrl:GrabNodeWithRightHand(node_ref)
 ctrl:ReleaseLeftHandObject()
 ctrl:ReleaseRightHandObject()
+ctrl:UngrabLeftHandObject()
+ctrl:UngrabRightHandObject()
 ```
 
 Behavior:
@@ -152,6 +154,7 @@ Behavior:
 - if the hand already holds something, that object is released first
 - release restores the current world transform, then reparents to the original parent if still valid
 - if the original parent is gone, release detaches the object to world space
+- ungrab restores the current world transform, then always detaches the object to world space
 
 Implementation note:
 the controller first tries to parent directly to the internal hand node.
@@ -290,6 +293,7 @@ Canonical action types:
 - `arm_amplitude`
 - `grab`
 - `release`
+- `ungrab`
 - `bend`
 - `kneel`
 - `look_at`
@@ -347,6 +351,12 @@ For example, `lock arm` and `lock-arm` will be interpreted as `lock_arm`.
 
 ```lua
 {type = "release", side = "right"}
+```
+
+`ungrab`
+
+```lua
+{type = "ungrab", side = "right"}
 ```
 
 `bend`
@@ -500,6 +510,7 @@ The implementation lowercases the input, so `Left` and `RIGHT` are also accepted
 - `arm_amplitude`: completes immediately after updating the selected side amplitude
 - `grab`: completes immediately after the parenting operation
 - `release`: completes immediately after the reparenting operation
+- `ungrab`: completes immediately after the world detach operation
 - `bend`: completes when the 2-second torso bend animation reaches its target
 - `kneel`: completes when the pelvis offset animation reaches its target duration
 - `look_at`: completes when the look blend reaches `1.0` and the neck/head have settled to the requested look target
@@ -546,7 +557,7 @@ Subsystems are persistent by design.
 - movement persists until the current target is reached or another movement command overrides it
 - rotation persists until the facing target is reached or another locomotion command overrides it
 - a hand lock persists until that hand is unlocked
-- a held object persists until that hand releases it
+- a held object persists until that hand releases or ungrabs it
 - a kneel offset persists until another `kneel` command overrides it
 - look-at persists until `ClearLookAt()` is called
 - a looping sound persists until the same `sound` id is stopped or replaced; a one-shot sound persists until it ends
