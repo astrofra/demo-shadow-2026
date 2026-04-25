@@ -13,6 +13,7 @@ The controller combines several orthogonal subsystems:
 - object grabbing and releasing per hand
 - persistent head and neck look-at
 - persistent scripted camera selection and tracking
+- non-blocking keyed sound playback and keyed instance animation playback
 - a blocking action sequence runner
 
 The goal is staged character choreography.
@@ -221,6 +222,39 @@ Steady-cam angle convention:
 
 `steady_cam` waits until the target has moved enough to infer a velocity direction. Until then, the camera does not change its position from the velocity-relative rule, but it can already rotate toward the target.
 
+### Audio
+
+```lua
+ctrl:PlaySound(sound_id, asset_name, options)
+ctrl:StopSound(sound_id)
+```
+
+Behavior:
+
+- `PlaySound()` plays an asset-backed audio file in `sound` mode, not as a stream
+- currently supported sound asset formats are `.ogg` and `.wav`
+- `asset_name` is an asset-relative path such as `"audio/ring.ogg"`
+- optional `options.loop = true` loops the sound; by default it plays once
+- reusing the same `sound_id` stops the previous source before the new one starts
+- `StopSound(sound_id)` stops the currently active source for that id immediately
+- stopping an unknown `sound_id` is a no-op
+
+### Instance Animation
+
+```lua
+ctrl:PlayInstanceNodeAnimation(playback_id, node_ref, animation_name, options)
+ctrl:StopInstanceNodeAnimation(playback_id)
+```
+
+Behavior:
+
+- `node_ref` must resolve to a node carrying an instantiated scene
+- the controller fetches the animation with `Node:GetInstanceSceneAnim(animation_name)`
+- optional `options.loop = true` loops the animation; by default it plays once
+- reusing the same `playback_id` stops the previous playing animation ref before starting the new one
+- `StopInstanceNodeAnimation(playback_id)` stops the currently active animation for that id immediately
+- this is useful for switching a looping instance animation such as `ring` back to `still`
+
 ### Sequence Runner
 
 ```lua
@@ -231,7 +265,7 @@ ctrl:IsActionSequenceRunning()
 
 Behavior:
 
-- actions are blocking
+- actions are blocking unless their completion semantics explicitly say otherwise
 - the next action starts only when the current one is considered complete
 - `StopActionSequence()` only stops the sequence runner itself
 - persistent subsystem states are not automatically reset on stop
@@ -241,6 +275,8 @@ Examples:
 - a locked arm stays locked after the sequence stops
 - a held object stays held after the sequence stops
 - a look-at target stays active after the sequence stops
+- a looping sound keeps playing after the sequence stops until its id is stopped or replaced
+- a looping instance animation keeps playing after the sequence stops until its id is stopped or replaced
 - a movement or rotation already started is not cancelled by `StopActionSequence()`
 
 ## Action Sequence Format
@@ -258,6 +294,8 @@ Canonical action types:
 - `kneel`
 - `look_at`
 - `clear_look_at`
+- `sound`
+- `instance_animation`
 - `camera`
 
 The action type normalizer also accepts spaces and hyphens.
@@ -339,6 +377,22 @@ For example, `lock arm` and `lock-arm` will be interpreted as `lock_arm`.
 {type = "clear_look_at", stiffness = 90}
 ```
 
+`sound`
+
+```lua
+{type = "sound", id = "phone_ring_audio", asset = "audio/ring.ogg"}
+{type = "sound", id = "phone_ring_audio", asset = "audio/ring.ogg", loop = true}
+{type = "sound", id = "phone_ring_audio", stop = true}
+```
+
+`instance_animation`
+
+```lua
+{type = "instance_animation", id = "phone_ring_anim", node = "telephone_speaker", animation = "ring", loop = true}
+{type = "instance_animation", id = "phone_ring_anim", animation = "still"}
+{type = "instance_animation", id = "phone_ring_anim", stop = true}
+```
+
 `camera`
 
 ```lua
@@ -363,6 +417,33 @@ Aliases:
 
 `side` accepts `left` or `right`.
 The implementation lowercases the input, so `Left` and `RIGHT` are also accepted.
+
+`sound` details:
+
+- `id` is required; `playback_id` is accepted as an alias
+- to play a sound, `asset`, `path`, `sound`, or `file` is required
+- the asset path is resolved from the HARFANG assets system, for example `"audio/ring.ogg"`
+- the sound is loaded and played as a `sound`, not streamed
+- `loop` or `repeat` is optional and must be a boolean
+- `once` is accepted as the inverse of `loop`
+- if no loop flag is provided, the sound plays once
+- `stop = true` stops the current playback for that id and ignores play fields
+- if the same id is played again while already active, the previous source is stopped first
+- the action is non-blocking
+
+`instance_animation` details:
+
+- `id` is required; `playback_id` is accepted as an alias
+- `animation`, `anim`, or `name` is required when starting playback
+- `node`, `target`, `instance`, or `node_ref` is required the first time an id is used
+- when an id is already active, `node` may be omitted and the previous node is reused
+- `loop` or `repeat` is optional and must be a boolean
+- `once` is accepted as the inverse of `loop`
+- if no loop flag is provided, the animation plays once
+- `stop = true` stops the current playback for that id and ignores play fields
+- replaying the same id stops the previous animation ref before the new animation starts
+- accepted action type aliases are `instance_anim`, `node_animation`, and `node_anim`
+- the action is non-blocking
 
 `arm_amplitude` details:
 
@@ -423,6 +504,8 @@ The implementation lowercases the input, so `Left` and `RIGHT` are also accepted
 - `kneel`: completes when the pelvis offset animation reaches its target duration
 - `look_at`: completes when the look blend reaches `1.0` and the neck/head have settled to the requested look target
 - `clear_look_at`: completes when the look blend reaches `0.0` and the neck/head have settled back to rest
+- `sound`: completes immediately after starting or stopping the keyed playback
+- `instance_animation`: completes immediately after starting or stopping the keyed playback
 - `camera`: completes immediately after changing the camera state
 
 ## Movement and Rotation Semantics
@@ -466,6 +549,8 @@ Subsystems are persistent by design.
 - a held object persists until that hand releases it
 - a kneel offset persists until another `kneel` command overrides it
 - look-at persists until `ClearLookAt()` is called
+- a looping sound persists until the same `sound` id is stopped or replaced; a one-shot sound persists until it ends
+- a looping instance animation persists until the same `instance_animation` id is stopped or replaced; a one-shot animation persists until it ends
 - camera selection, camera tracking mode, and steady-cam mode persist until another camera command overrides them
 
 This is important when building sequences.
@@ -526,6 +611,21 @@ local actions = {
 	{type = "grab", side = "right", target = "telephone_receiver"},
 	{type = "lock_arm", side = "right", target = "automaton-rig-tpose:phone_ear_anchor"},
 	{type = "look_at", target = "caller_focus_A"}
+}
+
+ctrl:RunActionSequence(actions)
+```
+
+## Example: Phone Ring Cue
+
+```lua
+local actions = {
+	{type = "sound", id = "phone_ring_audio", asset = "audio/ring.ogg", loop = true},
+	{type = "instance_animation", id = "phone_ring_anim", node = "telephone_speaker", animation = "ring", loop = true},
+	{type = "move", start = "path_A", target = "telephone_area"},
+	{type = "rotate", target = "telephone_receiver"},
+	{type = "sound", id = "phone_ring_audio", stop = true},
+	{type = "instance_animation", id = "phone_ring_anim", animation = "still"}
 }
 
 ctrl:RunActionSequence(actions)

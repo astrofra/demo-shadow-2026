@@ -216,6 +216,52 @@ local function read_number_field(tbl, keys, label)
 	return nil
 end
 
+local function ensure_non_empty_string(value, label)
+	if type(value) ~= "string" or value == "" then
+		error(('AutomatonController: %s must be a non-empty string'):format(label))
+	end
+
+	return value
+end
+
+local function read_string_field(tbl, keys, label)
+	if type(tbl) ~= "table" then
+		return nil
+	end
+
+	for _, key in ipairs(keys) do
+		local value = tbl[key]
+		if value ~= nil then
+			if type(value) ~= "string" or value == "" then
+				error(('AutomatonController: %s must be a non-empty string'):format(label))
+			end
+
+			return value
+		end
+	end
+
+	return nil
+end
+
+local function read_boolean_field(tbl, keys, label)
+	if type(tbl) ~= "table" then
+		return nil
+	end
+
+	for _, key in ipairs(keys) do
+		local value = tbl[key]
+		if value ~= nil then
+			if type(value) ~= "boolean" then
+				error(('AutomatonController: %s must be a boolean'):format(label))
+			end
+
+			return value
+		end
+	end
+
+	return nil
+end
+
 local function read_vec3(value, label)
 	if value == nil then
 		return nil
@@ -790,6 +836,22 @@ end
 
 function Controller:SetCurrentCamera(camera_name, options)
 	self:_set_current_camera(camera_name, options or {})
+end
+
+function Controller:PlaySound(sound_id, asset_name, options)
+	self:_play_sound(sound_id, asset_name, options or {})
+end
+
+function Controller:StopSound(sound_id)
+	self:_stop_sound(sound_id)
+end
+
+function Controller:PlayInstanceNodeAnimation(playback_id, node_ref, animation_name, options)
+	self:_play_instance_node_animation(playback_id, node_ref, animation_name, options or {})
+end
+
+function Controller:StopInstanceNodeAnimation(playback_id)
+	self:_stop_instance_node_animation(playback_id)
 end
 
 function Controller:RunActionSequence(actions)
@@ -1560,6 +1622,249 @@ function Controller:_apply_grabbed_objects()
 	self:_update_hand_attach_proxies()
 end
 
+function Controller:_read_loop_flag(options, label)
+	local loop = read_boolean_field(options, {"loop", "repeat"}, label .. " loop")
+	local once = read_boolean_field(options, {"once"}, label .. " once")
+
+	if loop ~= nil and once ~= nil and loop == once then
+		error(('AutomatonController: %s cannot define conflicting loop/once values'):format(label))
+	end
+
+	if loop ~= nil then
+		return loop
+	end
+
+	if once ~= nil then
+		return not once
+	end
+
+	return false
+end
+
+function Controller:_get_sound_asset_ref(asset_name)
+	asset_name = ensure_non_empty_string(asset_name, "sound asset path")
+
+	local cached = self.loaded_sound_assets[asset_name]
+	if cached ~= nil and cached ~= hg.SND_Invalid then
+		return cached
+	end
+
+	local extension = string.lower(asset_name:match("%.([^.]+)$") or "")
+	local sound_ref
+
+	if extension == "ogg" then
+		sound_ref = hg.LoadOGGSoundAsset(asset_name)
+	elseif extension == "wav" then
+		sound_ref = hg.LoadWAVSoundAsset(asset_name)
+	else
+		error(('AutomatonController: unsupported sound asset format for "%s" (expected .ogg or .wav)'):format(asset_name))
+	end
+
+	if sound_ref == hg.SND_Invalid then
+		error(('AutomatonController: failed to load sound asset "%s"'):format(asset_name))
+	end
+
+	self.loaded_sound_assets[asset_name] = sound_ref
+	return sound_ref
+end
+
+function Controller:_play_sound(sound_id, asset_name, options)
+	sound_id = ensure_non_empty_string(sound_id, "sound id")
+	local loop = self:_read_loop_flag(options, "sound")
+
+	self:_stop_sound(sound_id)
+
+	local sound_ref = self:_get_sound_asset_ref(asset_name)
+	local repeat_mode = loop and hg.SR_Loop or hg.SR_Once
+	local source_ref = hg.PlayStereo(sound_ref, hg.StereoSourceState(1.0, repeat_mode))
+
+	if source_ref == hg.SRC_Invalid then
+		error(('AutomatonController: failed to play sound "%s" (no free audio source)'):format(asset_name))
+	end
+
+	self.active_sound_playbacks[sound_id] = {
+		id = sound_id,
+		asset_name = asset_name,
+		source_ref = source_ref,
+		loop = loop
+	}
+end
+
+function Controller:_stop_sound(sound_id)
+	sound_id = ensure_non_empty_string(sound_id, "sound id")
+
+	local playback = self.active_sound_playbacks[sound_id]
+	if playback == nil then
+		return
+	end
+
+	if playback.source_ref ~= nil and playback.source_ref ~= hg.SRC_Invalid then
+		hg.StopSource(playback.source_ref)
+	end
+
+	self.active_sound_playbacks[sound_id] = nil
+end
+
+function Controller:_cleanup_sound_playbacks()
+	local stale_ids = nil
+
+	for sound_id, playback in pairs(self.active_sound_playbacks) do
+		local source_ref = playback.source_ref
+		local source_state = source_ref ~= nil and source_ref ~= hg.SRC_Invalid and hg.GetSourceState(source_ref) or hg.SS_Invalid
+		if source_state == hg.SS_Stopped or source_state == hg.SS_Invalid then
+			if stale_ids == nil then
+				stale_ids = {}
+			end
+			stale_ids[#stale_ids + 1] = sound_id
+		end
+	end
+
+	if stale_ids ~= nil then
+		for _, sound_id in ipairs(stale_ids) do
+			self.active_sound_playbacks[sound_id] = nil
+		end
+	end
+end
+
+function Controller:_play_instance_node_animation(playback_id, node_ref, animation_name, options)
+	playback_id = ensure_non_empty_string(playback_id, "instance animation id")
+	node_ref = ensure_non_empty_string(node_ref, "instance animation node")
+	animation_name = ensure_non_empty_string(animation_name, "instance animation name")
+
+	local loop = self:_read_loop_flag(options, "instance animation")
+	self:_stop_instance_node_animation(playback_id)
+
+	local node = self:_resolve_node_ref(node_ref)
+	local ok_anim, anim_ref_or_err = pcall(function()
+		return node:GetInstanceSceneAnim(animation_name)
+	end)
+
+	if not ok_anim then
+		error(('AutomatonController: failed to fetch instance animation "%s" on node "%s": %s'):format(
+			animation_name,
+			node_ref,
+			tostring(anim_ref_or_err)
+		))
+	end
+
+	local loop_mode = loop and hg.ALM_Loop or hg.ALM_Once
+	local ok_play, play_ref_or_err = pcall(function()
+		return self.scene:PlayAnim(anim_ref_or_err, loop_mode)
+	end)
+
+	if not ok_play then
+		error(('AutomatonController: failed to play instance animation "%s" on node "%s": %s'):format(
+			animation_name,
+			node_ref,
+			tostring(play_ref_or_err)
+		))
+	end
+
+	self.active_instance_animations[playback_id] = {
+		id = playback_id,
+		node_ref = node_ref,
+		node = node,
+		animation_name = animation_name,
+		play_ref = play_ref_or_err,
+		loop = loop
+	}
+end
+
+function Controller:_stop_instance_node_animation(playback_id)
+	playback_id = ensure_non_empty_string(playback_id, "instance animation id")
+
+	local playback = self.active_instance_animations[playback_id]
+	if playback == nil then
+		return
+	end
+
+	if playback.play_ref ~= nil then
+		pcall(function()
+			self.scene:StopAnim(playback.play_ref)
+		end)
+	end
+
+	self.active_instance_animations[playback_id] = nil
+end
+
+function Controller:_cleanup_instance_animations()
+	local stale_ids = nil
+
+	for playback_id, playback in pairs(self.active_instance_animations) do
+		local is_playing = false
+		if playback.play_ref ~= nil then
+			local ok, result = pcall(function()
+				return self.scene:IsPlaying(playback.play_ref)
+			end)
+			is_playing = ok and result
+		end
+
+		if not is_playing then
+			if stale_ids == nil then
+				stale_ids = {}
+			end
+			stale_ids[#stale_ids + 1] = playback_id
+		end
+	end
+
+	if stale_ids ~= nil then
+		for _, playback_id in ipairs(stale_ids) do
+			self.active_instance_animations[playback_id] = nil
+		end
+	end
+end
+
+function Controller:_run_sound_action(action)
+	local sound_id = read_string_field(action, {"id", "playback_id"}, "sound id")
+	if sound_id == nil then
+		error("AutomatonController: sound action requires an id")
+	end
+
+	local stop = read_boolean_field(action, {"stop"}, "sound stop")
+	if stop then
+		self:StopSound(sound_id)
+		return
+	end
+
+	local asset_name = read_string_field(action, {"asset", "path", "sound", "file"}, "sound asset path")
+	if asset_name == nil then
+		error("AutomatonController: sound action requires an asset path")
+	end
+
+	self:PlaySound(sound_id, asset_name, action)
+end
+
+function Controller:_run_instance_animation_action(action)
+	local playback_id = read_string_field(action, {"id", "playback_id"}, "instance animation id")
+	if playback_id == nil then
+		error("AutomatonController: instance animation action requires an id")
+	end
+
+	local stop = read_boolean_field(action, {"stop"}, "instance animation stop")
+	if stop then
+		self:StopInstanceNodeAnimation(playback_id)
+		return
+	end
+
+	local node_ref = read_string_field(action, {"node", "target", "instance", "node_ref"}, "instance animation node")
+	if node_ref == nil then
+		local active = self.active_instance_animations[playback_id]
+		if active ~= nil then
+			node_ref = active.node_ref
+		end
+	end
+	if node_ref == nil then
+		error("AutomatonController: instance animation action requires a node when the id is not already active")
+	end
+
+	local animation_name = read_string_field(action, {"animation", "anim", "name"}, "instance animation name")
+	if animation_name == nil then
+		error("AutomatonController: instance animation action requires an animation name")
+	end
+
+	self:PlayInstanceNodeAnimation(playback_id, node_ref, animation_name, action)
+end
+
 function Controller:_run_action(action)
 	local action_type = normalize_action_type(action.type)
 
@@ -1625,6 +1930,10 @@ function Controller:_run_action(action)
 		self:LookAtNode(action.target, read_number_field(action, {"stiffness", "speed", "angular_speed"}, "look_at stiffness"))
 	elseif action_type == "clear_look_at" then
 		self:ClearLookAt(read_number_field(action, {"stiffness", "speed", "angular_speed"}, "clear_look_at stiffness"))
+	elseif action_type == "sound" then
+		self:_run_sound_action(action)
+	elseif action_type == "instance_animation" or action_type == "instance_anim" or action_type == "node_animation" or action_type == "node_anim" then
+		self:_run_instance_animation_action(action)
 	elseif action_type == "camera" or action_type == "set_camera" then
 		self:_run_camera_action(action)
 	else
@@ -1645,7 +1954,10 @@ function Controller:_is_action_complete(action)
 	elseif action_type == "unlock_arm" then
 		local side = normalize_side(action.side)
 		return side ~= nil and self.hand_locks[side].blend <= 0.0
-	elseif action_type == "grab" or action_type == "release" or action_type == "camera" or action_type == "set_camera" or action_type == "arm_amplitude" then
+	elseif action_type == "grab" or action_type == "release" or action_type == "camera" or action_type == "set_camera"
+		or action_type == "arm_amplitude" or action_type == "sound"
+		or action_type == "instance_animation" or action_type == "instance_anim"
+		or action_type == "node_animation" or action_type == "node_anim" then
 		return true
 	elseif action_type == "bend" then
 		return not self.bend_state.active
@@ -2283,6 +2595,8 @@ end
 
 function Controller:Update(dt)
 	self:_refresh_instance_scale()
+	self:_cleanup_sound_playbacks()
+	self:_cleanup_instance_animations()
 	self:_update_action_runner()
 	self:_restore_controlled_pose()
 	self:_update_root_motion(dt)
@@ -2412,6 +2726,9 @@ local function create_controller(scene, instance_node_name)
 		view_nodes = {},
 		rest_pose = {},
 		node_refs = {},
+		loaded_sound_assets = {},
+		active_sound_playbacks = {},
+		active_instance_animations = {},
 		target_world = nil,
 		target_node_name = nil,
 		arrived = false,
