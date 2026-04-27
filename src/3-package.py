@@ -5,7 +5,7 @@ import subprocess
 
 
 ROOT = Path(__file__).resolve().parent
-OUTPUT_DIR = ROOT.parent / "martian-melodies_resistance-2026"
+OUTPUT_DIR = ROOT.parent / "shadow-2026_invite"
 DATA_DIR_NAME = "data"
 
 ENGINE_SRC = ROOT / "bin" / "hg_lua-win-x64"
@@ -30,6 +30,7 @@ LAUNCHER_RUNTIME_FILES = [
     "glfw3.dll",
     "harfang.dll",
     "lua54.dll",
+    "say.dll"
 ]
 
 ENGINE_EXCLUDE_FILES = {
@@ -38,7 +39,7 @@ ENGINE_EXCLUDE_FILES = {
 }
 
 OPTIONAL_FILES = [
-    "martian-melodies.nfo",
+    "shadow-26-invite.nfo",
     "screenshot.png",
 ]
 
