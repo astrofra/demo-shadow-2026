@@ -178,27 +178,40 @@ local function sanitize_compositing_settings(settings)
 	settings.COMPOSITING_JITTER_INTERVAL_MAX = math.max(settings.COMPOSITING_JITTER_INTERVAL_MIN, settings.COMPOSITING_JITTER_INTERVAL_MAX)
 end
 
-local function load_compositing_settings()
+local function load_compositing_settings(via_launcher)
 	local settings = clone_compositing_settings(DEFAULT_COMPOSITING_SETTINGS)
-	local file = io.open(COMPOSITING_SETTINGS_PATH, "r")
+	local saved_settings
 
-	if file == nil then
-		sanitize_compositing_settings(settings)
-		return settings, ("No %s found, using built-in defaults."):format(COMPOSITING_SETTINGS_PATH)
-	end
+	if via_launcher then
+		local module_name = COMPOSITING_SETTINGS_PATH:gsub("%.lua$", "")
+		local ok, result = pcall(require, module_name)
+		if not ok then
+			sanitize_compositing_settings(settings)
+			return settings, ("Failed to require %s: %s"):format(module_name, result)
+		end
+		saved_settings = result
+	else
+		local file = io.open(COMPOSITING_SETTINGS_PATH, "r")
 
-	file:close()
+		if file == nil then
+			sanitize_compositing_settings(settings)
+			return settings, ("No %s found, using built-in defaults."):format(COMPOSITING_SETTINGS_PATH)
+		end
 
-	local chunk, load_err = loadfile(COMPOSITING_SETTINGS_PATH)
-	if chunk == nil then
-		sanitize_compositing_settings(settings)
-		return settings, ("Failed to load %s: %s"):format(COMPOSITING_SETTINGS_PATH, load_err)
-	end
+		file:close()
 
-	local ok, saved_settings = pcall(chunk)
-	if not ok then
-		sanitize_compositing_settings(settings)
-		return settings, ("Failed to evaluate %s: %s"):format(COMPOSITING_SETTINGS_PATH, saved_settings)
+		local chunk, load_err = loadfile(COMPOSITING_SETTINGS_PATH)
+		if chunk == nil then
+			sanitize_compositing_settings(settings)
+			return settings, ("Failed to load %s: %s"):format(COMPOSITING_SETTINGS_PATH, load_err)
+		end
+
+		local ok, result = pcall(chunk)
+		if not ok then
+			sanitize_compositing_settings(settings)
+			return settings, ("Failed to evaluate %s: %s"):format(COMPOSITING_SETTINGS_PATH, result)
+		end
+		saved_settings = result
 	end
 
 	if type(saved_settings) ~= "table" then
@@ -656,13 +669,15 @@ local function main(cmd_arg)
 
 	say_helper("Shadow Party like it's 2026!")
 
-	if cmd_arg[1] == "--launcher" then
+	local via_launcher = cmd_arg[1] == "--launcher"
+
+	if via_launcher then
 		hg.AddAssetsFolder("data/assets_compiled")
 	else
 		hg.AddAssetsFolder("assets_compiled")
 	end
 
-	compositing_settings, compositing_load_status = load_compositing_settings()
+	compositing_settings, compositing_load_status = load_compositing_settings(via_launcher)
 
 	local config_done
 	local res_x
