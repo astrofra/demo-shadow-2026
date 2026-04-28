@@ -8,6 +8,7 @@ local DEBUG_MOVE_START_NODE = "path_0"
 local DEBUG_MOVE_TARGET_NODE = "path_1"
 local DEBUG_ROTATE_TARGET_NODE_A = "path_0"
 local DEBUG_ROTATE_TARGET_NODE_B = "path_1"
+local BACKPACK_WEIGHT = 2.4
 
 local MAIN_LIGHT_NAME = "MainLight"
 local MAIN_LIGHT_SHADOW_NEAR = 25.0
@@ -463,6 +464,8 @@ local function draw_compositing_tuning_ui(settings, ui_state, automaton_controll
 			hg.ImGuiText(("Held right: %s"):format(debug_state.held_right))
 			hg.ImGuiText(("Look target: %s"):format(debug_state.look_target))
 			hg.ImGuiText(("Look blend: %.2f"):format(debug_state.look_blend))
+			hg.ImGuiText(("Backpack weight: %.2f"):format(debug_state.backpack_weight))
+			hg.ImGuiText(("Backpack rot X/Y: %.2f / %.2f deg"):format(debug_state.backpack_pitch_deg, debug_state.backpack_yaw_deg))
 			hg.ImGuiText(("Action: %s"):format(debug_state.current_action_type))
 			hg.ImGuiText(("Action index: %d"):format(debug_state.action_index))
 			hg.ImGuiText(("F1/F2 move %s <-> %s"):format(DEBUG_MOVE_START_NODE, DEBUG_MOVE_TARGET_NODE))
@@ -561,6 +564,7 @@ local function run_demo_3d(win, res_x, res_y, config, compositing_settings, load
 	local res = hg.PipelineResources()
 	local scene = load_main_scene(res)
 	local automaton_controller = automaton_controller_lib.CreateAutomatonController(scene, "automaton-rig-tpose")
+	automaton_controller:SetBackpackWeight(BACKPACK_WEIGHT)
 	local pipeline_aaa, pipeline_aaa_config = create_pipeline_aaa(config, compositing_settings)
 	local vignette_modulator = create_strength_modulator("COMPOSITING_VIGNETTE_STRENGTH", 0.0, 0.85)
 	local circular_blur_modulator = create_strength_modulator("COMPOSITING_CIRCULAR_BLUR_STRENGTH", math.pi * 0.37, 1.15)

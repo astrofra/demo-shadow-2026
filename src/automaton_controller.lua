@@ -56,6 +56,9 @@ local LOOK_NODES = {
 	}
 }
 
+local BACKPACK_NODE_NAME = "backpack-crt"
+local BACKPACK_PIVOT_NODE_NAME = "backpack-pivot"
+
 -- Offsets captured from walking-arms-along-the-body.scn to keep the
 -- procedural pose aligned with the imported rig axes.
 local FREE_ARM_NEUTRAL_OFFSETS = {
@@ -459,6 +462,59 @@ local function direction_to_world(world_matrix, local_direction, fallback)
 	)
 end
 
+local function direction_to_local(world_matrix, world_direction)
+	local x_axis = safe_normalize(hg.GetX(world_matrix), WORLD_RIGHT)
+	local y_axis = safe_normalize(hg.GetY(world_matrix), WORLD_UP)
+	local z_axis = safe_normalize(hg.GetZ(world_matrix), WORLD_FRONT)
+	return hg.Vec3(
+		hg.Dot(world_direction, x_axis),
+		hg.Dot(world_direction, y_axis),
+		hg.Dot(world_direction, z_axis)
+	)
+end
+
+local function estimate_angular_velocity(previous_world, current_world, dt)
+	local inv_dt = 1.0 / math.max(dt, 0.0001)
+	local prev_x = safe_normalize(hg.GetX(previous_world), WORLD_RIGHT)
+	local prev_y = safe_normalize(hg.GetY(previous_world), WORLD_UP)
+	local prev_z = safe_normalize(hg.GetZ(previous_world), WORLD_FRONT)
+	local curr_x = safe_normalize(hg.GetX(current_world), WORLD_RIGHT)
+	local curr_y = safe_normalize(hg.GetY(current_world), WORLD_UP)
+	local curr_z = safe_normalize(hg.GetZ(current_world), WORLD_FRONT)
+
+	return (hg.Cross(prev_x, curr_x) + hg.Cross(prev_y, curr_y) + hg.Cross(prev_z, curr_z)) * (0.5 * inv_dt)
+end
+
+local function clamp_signed(value, limit)
+	return clamp(value, -limit, limit)
+end
+
+local function clamp_spring(angle, velocity, limit)
+	if angle > limit then
+		angle = limit
+		velocity = math.min(velocity, 0.0)
+	elseif angle < -limit then
+		angle = -limit
+		velocity = math.max(velocity, 0.0)
+	end
+
+	return angle, velocity
+end
+
+local function step_backpack_spring(angle, velocity, excitation, dt, params, weight)
+	local effective_weight = math.max(weight or 1.0, 0.05)
+	local effective_stiffness = params.stiffness / effective_weight
+	local effective_damping = params.damping / math.sqrt(effective_weight)
+	local spring_acceleration =
+		-angle * effective_stiffness
+		- velocity * effective_damping
+		+ excitation * effective_weight
+
+	velocity = clamp_signed(velocity + spring_acceleration * dt, params.max_speed)
+	angle, velocity = clamp_spring(angle + velocity * dt, velocity, params.limit)
+	return angle, velocity
+end
+
 local function normalized_world_basis(world_matrix)
 	return hg.Normalize(hg.Mat3(
 		safe_normalize(hg.GetX(world_matrix), WORLD_RIGHT),
@@ -684,6 +740,88 @@ function Controller:_restore_controlled_pose()
 	end
 end
 
+function Controller:_update_backpack_joint(dt)
+	local joint = self.backpack_joint
+	if joint == nil or not joint.enabled then
+		return
+	end
+
+	if not joint.node:IsValid() or not joint.pivot_node:IsValid() then
+		joint.enabled = false
+		return
+	end
+
+	local pivot_world = capture_world_matrix(joint.pivot_node)
+	local pivot_position = hg.GetT(pivot_world)
+	if dt <= 0.0 then
+		joint.previous_pivot_world = pivot_world
+		joint.previous_pivot_position = copy_vec3(pivot_position)
+		joint.previous_world_linear_velocity = hg.Vec3(0.0, 0.0, 0.0)
+		joint.previous_local_angular_velocity = hg.Vec3(0.0, 0.0, 0.0)
+		joint.node:GetTransform():SetPosRot(
+			joint.rest_pose.pos,
+			hg.Vec3(joint.rest_pose.rot.x + joint.angle_x, joint.rest_pose.rot.y + joint.angle_y, joint.rest_pose.rot.z)
+		)
+		return
+	end
+
+	local measure_dt = math.max(dt, 0.0001)
+	local step_dt = math.min(measure_dt, joint.params.max_dt)
+	if joint.previous_pivot_world == nil or joint.previous_pivot_position == nil then
+		joint.previous_pivot_world = pivot_world
+		joint.previous_pivot_position = copy_vec3(pivot_position)
+		joint.previous_world_linear_velocity = hg.Vec3(0.0, 0.0, 0.0)
+		joint.previous_local_angular_velocity = hg.Vec3(0.0, 0.0, 0.0)
+		return
+	end
+
+	local world_angular_velocity = estimate_angular_velocity(joint.previous_pivot_world, pivot_world, measure_dt)
+	local local_angular_velocity = direction_to_local(pivot_world, world_angular_velocity)
+	local local_angular_acceleration = (local_angular_velocity - joint.previous_local_angular_velocity) * (1.0 / measure_dt)
+	local world_linear_velocity = (pivot_position - joint.previous_pivot_position) * (1.0 / measure_dt)
+	local world_linear_acceleration = (world_linear_velocity - joint.previous_world_linear_velocity) * (1.0 / measure_dt)
+	local local_linear_acceleration = direction_to_local(pivot_world, world_linear_acceleration)
+	local walk_excitation = (self.step_active and (0.35 + self.gait_drive * 0.65) or 0.0) * self.motion_weight
+	local pitch_excitation =
+		(-local_angular_velocity.x * joint.params.x.angular_velocity_drive)
+		- (local_angular_acceleration.x * joint.params.x.angular_acceleration_drive)
+		- (local_linear_acceleration.z * joint.params.x.linear_acceleration_drive)
+		+ (math.sin(self.walk_phase) * walk_excitation * joint.params.x.walk_drive)
+	local yaw_excitation =
+		(-local_angular_velocity.y * joint.params.y.angular_velocity_drive)
+		- (local_angular_acceleration.y * joint.params.y.angular_acceleration_drive)
+		+ (local_linear_acceleration.x * joint.params.y.linear_acceleration_drive)
+		+ (math.cos(self.walk_phase) * walk_excitation * joint.params.y.walk_drive)
+
+	joint.angle_x, joint.velocity_x = step_backpack_spring(
+		joint.angle_x,
+		joint.velocity_x,
+		pitch_excitation,
+		step_dt,
+		joint.params.x,
+		joint.weight
+	)
+
+	joint.angle_y, joint.velocity_y = step_backpack_spring(
+		joint.angle_y,
+		joint.velocity_y,
+		yaw_excitation,
+		step_dt,
+		joint.params.y,
+		joint.weight
+	)
+
+	joint.node:GetTransform():SetPosRot(
+		joint.rest_pose.pos,
+		hg.Vec3(joint.rest_pose.rot.x + joint.angle_x, joint.rest_pose.rot.y + joint.angle_y, joint.rest_pose.rot.z)
+	)
+
+	joint.previous_pivot_world = pivot_world
+	joint.previous_pivot_position = copy_vec3(pivot_position)
+	joint.previous_world_linear_velocity = world_linear_velocity
+	joint.previous_local_angular_velocity = local_angular_velocity
+end
+
 function Controller:_update_hand_lock_blends(dt)
 	for _, side in ipairs({"left", "right"}) do
 		local lock_state = self.hand_locks[side]
@@ -826,6 +964,10 @@ function Controller:SetFreeArmAmplitude(side_name, amplitude)
 	self:_set_free_arm_amplitude(side_name, amplitude)
 end
 
+function Controller:SetBackpackWeight(weight)
+	self:_set_backpack_weight(weight)
+end
+
 function Controller:SetBendDegrees(degrees)
 	self:_set_bend_target_deg(degrees)
 end
@@ -935,6 +1077,14 @@ function Controller:_set_free_arm_amplitude(side_name, amplitude)
 	end
 
 	self.free_arm_amplitude[normalized_side] = clamp(amplitude, 0.0, 1.0)
+end
+
+function Controller:_set_backpack_weight(weight)
+	if type(weight) ~= "number" then
+		error("AutomatonController: backpack weight must be a number")
+	end
+
+	self.backpack_joint.weight = math.max(weight, 0.05)
 end
 
 function Controller:_set_bend_target_deg(degrees)
@@ -1956,6 +2106,8 @@ function Controller:_run_action(action)
 		end
 	elseif action_type == "arm_amplitude" then
 		self:SetFreeArmAmplitude(action.side, read_number_field(action, {"value", "amplitude"}, "arm_amplitude value"))
+	elseif action_type == "backpack_weight" then
+		self:SetBackpackWeight(read_number_field(action, {"value", "weight", "mass"}, "backpack_weight value"))
 	elseif action_type == "bend" then
 		self:SetBendDegrees(read_number_field(action, {"value", "degrees", "angle"}, "bend value"))
 	elseif action_type == "kneel" then
@@ -1993,6 +2145,7 @@ function Controller:_is_action_complete(action)
 		return side ~= nil and self.hand_locks[side].blend <= 0.0
 	elseif action_type == "grab" or action_type == "release" or action_type == "ungrab" or action_type == "camera" or action_type == "set_camera"
 		or action_type == "arm_amplitude" or action_type == "sound"
+		or action_type == "backpack_weight"
 		or action_type == "instance_animation" or action_type == "instance_anim"
 		or action_type == "node_animation" or action_type == "node_anim" then
 		return true
@@ -2647,6 +2800,7 @@ function Controller:Update(dt)
 	self:_apply_arm_pose("right")
 	self:_apply_look_at_pose(dt)
 	self:_apply_grabbed_objects()
+	self:_update_backpack_joint(dt)
 	self:_update_camera_state(dt)
 	self:_update_action_runner()
 end
@@ -2686,6 +2840,9 @@ function Controller:GetDebugState()
 		held_right = self.held_objects.right.node_ref or "-",
 		look_target = self.look_at_state.target_name or "-",
 		look_blend = self.look_at_state.blend,
+		backpack_weight = self.backpack_joint ~= nil and self.backpack_joint.weight or 0.0,
+		backpack_pitch_deg = self.backpack_joint ~= nil and math.deg(self.backpack_joint.angle_x) or 0.0,
+		backpack_yaw_deg = self.backpack_joint ~= nil and math.deg(self.backpack_joint.angle_y) or 0.0,
 		camera = self.camera_state.node_name or "-",
 		camera_mode = self.camera_state.mode,
 		camera_target = self.camera_state.target_name or "-",
@@ -2939,6 +3096,45 @@ local function create_controller(scene, instance_node_name)
 			left = {planted_world = hg.Vec3(), swing_from = hg.Vec3(), swing_to = hg.Vec3(), current_world = hg.Vec3()},
 			right = {planted_world = hg.Vec3(), swing_from = hg.Vec3(), swing_to = hg.Vec3(), current_world = hg.Vec3()}
 		},
+		backpack_joint = {
+			enabled = false,
+			node = nil,
+			pivot_node = nil,
+			pivot_name = nil,
+			rest_pose = nil,
+			previous_pivot_world = nil,
+			previous_pivot_position = nil,
+			previous_world_linear_velocity = hg.Vec3(0.0, 0.0, 0.0),
+			previous_local_angular_velocity = hg.Vec3(0.0, 0.0, 0.0),
+			angle_x = 0.0,
+			angle_y = 0.0,
+			velocity_x = 0.0,
+			velocity_y = 0.0,
+			weight = 1.0,
+			params = {
+				max_dt = 0.05,
+				x = {
+					limit = hg.Deg(5.0),
+					stiffness = 32.0,
+					damping = 7.0,
+					angular_velocity_drive = 1.2,
+					angular_acceleration_drive = 0.10,
+					linear_acceleration_drive = 0.04 * 2.0,
+					walk_drive = 0.95,
+					max_speed = hg.Deg(220.0)
+				},
+				y = {
+					limit = hg.Deg(5.0),
+					stiffness = 26.0,
+					damping = 6.0,
+					angular_velocity_drive = 1.0,
+					angular_acceleration_drive = 0.08,
+					linear_acceleration_drive = 0.024 * 2.0,
+					walk_drive = 0.42,
+					max_speed = hg.Deg(180.0)
+				}
+			}
+		},
 		turn_step = {
 			active = false,
 			delta_yaw = 0.0,
@@ -2952,6 +3148,17 @@ local function create_controller(scene, instance_node_name)
 	for _, name in ipairs(CONTROLLED_NODE_NAMES) do
 		controller.view_nodes[name] = controller:_get_view_node(name)
 		controller.rest_pose[name] = capture_local_pose(controller.view_nodes[name])
+	end
+
+	controller.backpack_joint.node = controller.scene_view:GetNode(controller.scene, BACKPACK_NODE_NAME)
+	controller.backpack_joint.pivot_name = BACKPACK_PIVOT_NODE_NAME
+	controller.backpack_joint.pivot_node = controller.scene_view:GetNode(controller.scene, BACKPACK_PIVOT_NODE_NAME)
+
+	if controller.backpack_joint.node:IsValid() and controller.backpack_joint.pivot_node:IsValid() then
+		controller.backpack_joint.enabled = true
+		controller.backpack_joint.rest_pose = capture_local_pose(controller.backpack_joint.node)
+		controller.backpack_joint.previous_pivot_world = capture_world_matrix(controller.backpack_joint.pivot_node)
+		controller.backpack_joint.previous_pivot_position = get_world_position(controller.backpack_joint.pivot_node)
 	end
 
 	controller.arm_lengths.left.upper = resolve_chain_length(controller.rest_pose["mixamorig_LeftForeArm"])
