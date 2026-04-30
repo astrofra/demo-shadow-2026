@@ -121,6 +121,8 @@ local function append_automaton_debug_lines(lines, automaton_controller)
 	push_line(lines, neck_origin, neck_origin + debug_draw_state.neck_actual_forward * 0.55, hg.Color(0.0, 0.9, 0.2, 1.0))
 	push_line(lines, head_origin, head_origin + debug_draw_state.head_actual_forward * 0.65, hg.Color(0.1, 1.0, 0.1, 1.0))
 	push_line(lines, debug_draw_state.left_foot_pos, debug_draw_state.right_foot_pos, hg.Color(0.25, 0.6, 1.0, 1.0))
+	push_line(lines, debug_draw_state.left_foot_node_pos, debug_draw_state.left_foot_pos, hg.Color(1.0, 0.25, 0.25, 1.0))
+	push_line(lines, debug_draw_state.right_foot_node_pos, debug_draw_state.right_foot_pos, hg.Color(0.25, 0.45, 1.0, 1.0))
 
 	if debug_draw_state.target_pos ~= nil then
 		local target_pos = hg.Vec3(debug_draw_state.target_pos.x, desired_origin.y, debug_draw_state.target_pos.z)
@@ -456,8 +458,21 @@ local function draw_compositing_tuning_ui(settings, ui_state, automaton_controll
 			hg.ImGuiText(("Yaw error: %.2f deg"):format(debug_state.yaw_error_deg))
 			hg.ImGuiText(("Speed: %.3f m/s"):format(debug_state.current_speed))
 			hg.ImGuiText(("Gait drive: %.2f"):format(debug_state.gait_drive))
-			hg.ImGuiText(("Support foot: %s"):format(debug_state.support_side))
+			hg.ImGuiText(("Support/Swing: %s / %s"):format(debug_state.support_side, debug_state.swing_side))
 			hg.ImGuiText(("Step progress: %.2f"):format(debug_state.step_progress))
+			hg.ImGuiText(("Reset forward L/R: %.3f / %.3f"):format(debug_state.reset_left_forward, debug_state.reset_right_forward))
+			hg.ImGuiText(("Left foot node Y/target Y: %.3f / %.3f"):format(debug_state.left_foot_node_y, debug_state.left_foot_target_y))
+			hg.ImGuiText(("Right foot node Y/target Y: %.3f / %.3f"):format(debug_state.right_foot_node_y, debug_state.right_foot_target_y))
+			hg.ImGuiText(("Left foot target dXZ: %.3f (dx %.3f dz %.3f)"):format(
+				debug_state.left_foot_target_distance,
+				debug_state.left_foot_target_dx,
+				debug_state.left_foot_target_dz
+			))
+			hg.ImGuiText(("Right foot target dXZ: %.3f (dx %.3f dz %.3f)"):format(
+				debug_state.right_foot_target_distance,
+				debug_state.right_foot_target_dx,
+				debug_state.right_foot_target_dz
+			))
 			hg.ImGuiText(("Left hand: %s"):format(debug_state.left_hand))
 			hg.ImGuiText(("Right hand: %s"):format(debug_state.right_hand))
 			hg.ImGuiText(("Held left: %s"):format(debug_state.held_left))
@@ -475,6 +490,7 @@ local function draw_compositing_tuning_ui(settings, ui_state, automaton_controll
 			hg.ImGuiText("F9 rerun robot scenario")
 			hg.ImGuiText(("F10 debug draw: %s"):format(show_automaton_debug_draw and "on" or "off"))
 			hg.ImGuiText("Debug colors: yellow=compensated root, orange=raw root axis, pink=desired, cyan=pelvis, green=chest, white=target")
+			hg.ImGuiText("Foot debug: red=left Foot node -> IK target, blue=right Foot node -> IK target")
 
 			if hg.ImGuiButton(("Move %s -> %s"):format(DEBUG_MOVE_START_NODE, DEBUG_MOVE_TARGET_NODE)) then
 				automaton_controller:MoveFromNodeToNode(DEBUG_MOVE_START_NODE, DEBUG_MOVE_TARGET_NODE)
@@ -563,6 +579,7 @@ local function run_demo_3d(win, res_x, res_y, config, compositing_settings, load
 	local pipeline = hg.CreateForwardPipeline(2048, false)
 	local res = hg.PipelineResources()
 	local scene = load_main_scene(res)
+	scene:Update(0)
 	local automaton_controller = automaton_controller_lib.CreateAutomatonController(scene, "automaton-rig-tpose")
 	automaton_controller:SetBackpackWeight(BACKPACK_WEIGHT)
 	local pipeline_aaa, pipeline_aaa_config = create_pipeline_aaa(config, compositing_settings)

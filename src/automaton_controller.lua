@@ -2263,6 +2263,9 @@ end
 
 function Controller:_reset_gait_state()
 	self:_refresh_instance_scale()
+	-- Sample foot anchors from the rig's neutral controlled pose, not from
+	-- whatever procedural pose happened to be active on the previous frame.
+	self:_restore_controlled_pose()
 
 	local root_position = self.instance_node:GetTransform():GetPos()
 	local root_rotation = self.instance_node:GetTransform():GetRot()
@@ -2286,6 +2289,10 @@ function Controller:_reset_gait_state()
 
 	local left_forward = hg.Dot(left_pos - root_position, facing)
 	local right_forward = hg.Dot(right_pos - root_position, facing)
+	self.debug_last_reset_support = {
+		left_forward = left_forward,
+		right_forward = right_forward
+	}
 
 	self.support_side = left_forward <= right_forward and "left" or "right"
 	self.swing_side = self.support_side == "left" and "right" or "left"
@@ -2818,6 +2825,13 @@ function Controller:GetCurrentTargetNodeName()
 end
 
 function Controller:GetDebugState()
+	local left_foot_node_pos = self:_get_foot_world("left")
+	local right_foot_node_pos = self:_get_foot_world("right")
+	local left_foot_target = self.feet.left.current_world
+	local right_foot_target = self.feet.right.current_world
+	local left_foot_delta = flatten_xz(left_foot_target - left_foot_node_pos)
+	local right_foot_delta = flatten_xz(right_foot_target - right_foot_node_pos)
+
 	return {
 		state = self.state,
 		target = self.target_node_name or "-",
@@ -2831,9 +2845,22 @@ function Controller:GetDebugState()
 		left_arm_amplitude = self.free_arm_amplitude.left,
 		right_arm_amplitude = self.free_arm_amplitude.right,
 		support_side = self.support_side,
+		swing_side = self.swing_side,
 		step_progress = self.step_progress,
 		step_pause_timer = self.step_pause_timer,
 		locomotion_speed = self.locomotion_speed,
+		left_foot_node_y = left_foot_node_pos.y,
+		right_foot_node_y = right_foot_node_pos.y,
+		left_foot_target_y = left_foot_target.y,
+		right_foot_target_y = right_foot_target.y,
+		left_foot_target_dx = left_foot_delta.x,
+		left_foot_target_dz = left_foot_delta.z,
+		right_foot_target_dx = right_foot_delta.x,
+		right_foot_target_dz = right_foot_delta.z,
+		left_foot_target_distance = hg.Len(left_foot_delta),
+		right_foot_target_distance = hg.Len(right_foot_delta),
+		reset_left_forward = self.debug_last_reset_support.left_forward,
+		reset_right_forward = self.debug_last_reset_support.right_forward,
 		left_hand = self.hand_locks.left.target_name or "free",
 		right_hand = self.hand_locks.right.target_name or "free",
 		held_left = self.held_objects.left.node_ref or "-",
@@ -2860,6 +2887,8 @@ function Controller:GetDebugDrawState()
 	local right_shoulder_pos = get_world_position(self.view_nodes["mixamorig_RightShoulder"])
 	local left_up_leg_pos = get_world_position(self.view_nodes["mixamorig_LeftUpLeg"])
 	local right_up_leg_pos = get_world_position(self.view_nodes["mixamorig_RightUpLeg"])
+	local left_foot_node_pos = self:_get_foot_world("left")
+	local right_foot_node_pos = self:_get_foot_world("right")
 	local target_position = nil
 	local hips_position = get_world_position(hips_node)
 	local neck_position = get_world_position(neck_node)
@@ -2903,6 +2932,8 @@ function Controller:GetDebugDrawState()
 		look_neck_desired_dir = look_debug.neck.desired_dir ~= nil and copy_vec3(look_debug.neck.desired_dir) or nil,
 		look_neck_applied_dir = look_debug.neck.applied_dir ~= nil and copy_vec3(look_debug.neck.applied_dir) or nil,
 		look_neck_actual_dir = look_debug.neck.actual_dir ~= nil and copy_vec3(look_debug.neck.actual_dir) or nil,
+		left_foot_node_pos = copy_vec3(left_foot_node_pos),
+		right_foot_node_pos = copy_vec3(right_foot_node_pos),
 		left_foot_pos = copy_vec3(self.feet.left.current_world),
 		right_foot_pos = copy_vec3(self.feet.right.current_world),
 		support_side = self.support_side,
@@ -3091,6 +3122,10 @@ local function create_controller(scene, instance_node_name)
 		leg_lengths = {
 			left = {upper = 0.0, lower = 0.0},
 			right = {upper = 0.0, lower = 0.0}
+		},
+		debug_last_reset_support = {
+			left_forward = 0.0,
+			right_forward = 0.0
 		},
 		feet = {
 			left = {planted_world = hg.Vec3(), swing_from = hg.Vec3(), swing_to = hg.Vec3(), current_world = hg.Vec3()},
