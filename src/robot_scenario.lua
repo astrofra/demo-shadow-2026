@@ -18,6 +18,7 @@ local actions = {
 	{type = "look_at", target = "path_2", stiffness = 90},
 	{type = "rotate", target = "path_2"},
 	{type = "clear_look_at", stiffness = 90},
+	{type = "say", phrase = "OK ! Let's go !"},
     {type = "move", start = "path_1", target = "path_2"},
 	{type = "look_at", target = "watering_can", stiffness = 90},
 	{type = "lock_arm", side = "right", target = "automaton-rig-tpose:hand_target_can", duration = 0.5},

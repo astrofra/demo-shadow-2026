@@ -1,5 +1,8 @@
 local hg = require("harfang")
 
+local SAY_AUDIO_FORMAT = hg.AFF_LPCM_44KHZ_S16_Mono
+local say_module = false
+
 local WORLD_UP = hg.Vec3(0.0, 1.0, 0.0)
 local WORLD_RIGHT = hg.Vec3(1.0, 0.0, 0.0)
 local WORLD_FRONT = hg.Vec3(0.0, 0.0, -1.0)
@@ -141,6 +144,19 @@ local CONTROLLED_NODE_NAMES = {
 
 local Controller = {}
 Controller.__index = Controller
+
+local function get_say_module()
+	if say_module == false then
+		local ok, module_or_err = pcall(require, "say")
+		if not ok then
+			error(('AutomatonController: failed to require "say": %s'):format(tostring(module_or_err)))
+		end
+
+		say_module = module_or_err
+	end
+
+	return say_module
+end
 
 local function copy_vec3(value)
 	return hg.Vec3(value.x, value.y, value.z)
@@ -994,6 +1010,10 @@ end
 
 function Controller:StopSound(sound_id)
 	self:_stop_sound(sound_id)
+end
+
+function Controller:Say(text, options)
+	self:_say(text, options or {})
 end
 
 function Controller:PlayInstanceNodeAnimation(playback_id, node_ref, animation_name, options)
@@ -1904,6 +1924,112 @@ function Controller:_cleanup_sound_playbacks()
 	end
 end
 
+function Controller:_stop_say_playback()
+	local playback = self.say_playback
+	if playback == nil then
+		return
+	end
+
+	if playback.source_ref ~= nil and playback.source_ref ~= hg.SRC_Invalid then
+		hg.StopSource(playback.source_ref)
+	end
+
+	if playback.sound_ref ~= nil and playback.sound_ref ~= hg.SND_Invalid then
+		hg.UnloadSound(playback.sound_ref)
+	end
+
+	self.say_playback = nil
+end
+
+function Controller:_cleanup_say_playback()
+	local playback = self.say_playback
+	if playback == nil then
+		return
+	end
+
+	local source_ref = playback.source_ref
+	local source_state = source_ref ~= nil and source_ref ~= hg.SRC_Invalid and hg.GetSourceState(source_ref) or hg.SS_Invalid
+	if source_state == hg.SS_Stopped or source_state == hg.SS_Invalid then
+		if playback.sound_ref ~= nil and playback.sound_ref ~= hg.SND_Invalid then
+			hg.UnloadSound(playback.sound_ref)
+		end
+
+		self.say_playback = nil
+	end
+end
+
+function Controller:_say(text, options)
+	text = ensure_non_empty_string(text, "say text")
+	options = options or {}
+
+	local volume = read_number_field(options, {"volume", "gain"}, "say volume")
+	if volume == nil then
+		volume = 1.0
+	elseif volume < 0.0 then
+		error("AutomatonController: say volume must be greater than or equal to 0")
+	end
+
+	local synth_options = {format = "raw"}
+	local lang = read_string_field(options, {"lang", "language"}, "say language")
+	local frame_ms = read_number_field(options, {"frame_ms"}, "say frame_ms")
+	local phonemes = read_boolean_field(options, {"phonemes"}, "say phonemes")
+	local amiga = read_boolean_field(options, {"amiga"}, "say amiga")
+
+	if lang ~= nil then
+		synth_options.lang = lang
+	end
+	if frame_ms ~= nil then
+		synth_options.frame_ms = frame_ms
+	end
+	if phonemes ~= nil then
+		synth_options.phonemes = phonemes
+	end
+	if amiga ~= nil then
+		synth_options.amiga = amiga
+	end
+
+	self:_stop_say_playback()
+
+	local blob
+	local info
+	local ok_synth, synth_err = pcall(function()
+		blob, info = get_say_module().synthesize(text, synth_options)
+	end)
+	if not ok_synth then
+		error(('AutomatonController: failed to synthesize say text "%s": %s'):format(text, tostring(synth_err)))
+	end
+
+	if info ~= nil and info.sample_rate ~= nil and info.sample_rate ~= 44100 then
+		error(('AutomatonController: unsupported say sample rate %s (expected 44100 Hz)'):format(tostring(info.sample_rate)))
+	end
+
+	local sound_ref = hg.LoadLPCMSound(blob:GetData(), blob:GetSize(), SAY_AUDIO_FORMAT)
+	if sound_ref == hg.SND_Invalid then
+		error("AutomatonController: failed to create LPCM sound for say playback")
+	end
+
+	local source_ref = hg.PlayStereo(sound_ref, hg.StereoSourceState(volume, hg.SR_Once))
+	if source_ref == hg.SRC_Invalid then
+		hg.UnloadSound(sound_ref)
+		error(('AutomatonController: failed to play say text "%s" (no free audio source)'):format(text))
+	end
+
+	self.say_playback = {
+		text = text,
+		sound_ref = sound_ref,
+		source_ref = source_ref
+	}
+end
+
+function Controller:_run_say_action(action)
+	local text = read_string_field(action, {"text", "phrase", "value"}, "say text")
+	if text == nil then
+		error("AutomatonController: say action requires text")
+	end
+
+	self:Say(text, action)
+end
+
 function Controller:_play_instance_node_animation(playback_id, node_ref, animation_name, options)
 	playback_id = ensure_non_empty_string(playback_id, "instance animation id")
 	node_ref = ensure_non_empty_string(node_ref, "instance animation node")
@@ -2119,6 +2245,8 @@ function Controller:_run_action(action)
 		self:LookAtNode(action.target, read_number_field(action, {"stiffness", "speed", "angular_speed"}, "look_at stiffness"))
 	elseif action_type == "clear_look_at" then
 		self:ClearLookAt(read_number_field(action, {"stiffness", "speed", "angular_speed"}, "clear_look_at stiffness"))
+	elseif action_type == "say" then
+		self:_run_say_action(action)
 	elseif action_type == "sound" then
 		self:_run_sound_action(action)
 	elseif action_type == "instance_animation" or action_type == "instance_anim" or action_type == "node_animation" or action_type == "node_anim" then
@@ -2157,6 +2285,15 @@ function Controller:_is_action_complete(action)
 		return self.look_at_state.blend >= 1.0 and self:_is_look_at_pose_settled()
 	elseif action_type == "clear_look_at" then
 		return self.look_at_state.blend <= 0.0 and self:_is_look_at_pose_settled()
+	elseif action_type == "say" then
+		local playback = self.say_playback
+		if playback == nil then
+			return true
+		end
+
+		local source_ref = playback.source_ref
+		local source_state = source_ref ~= nil and source_ref ~= hg.SRC_Invalid and hg.GetSourceState(source_ref) or hg.SS_Invalid
+		return source_state == hg.SS_Stopped or source_state == hg.SS_Invalid
 	end
 
 	return true
@@ -2793,6 +2930,7 @@ end
 function Controller:Update(dt)
 	self:_refresh_instance_scale()
 	self:_cleanup_sound_playbacks()
+	self:_cleanup_say_playback()
 	self:_cleanup_instance_animations()
 	self:_update_action_runner()
 	self:_restore_controlled_pose()
@@ -3115,6 +3253,7 @@ local function create_controller(scene, instance_node_name)
 			current_action_type = nil,
 			current_action_index = 0
 		},
+		say_playback = nil,
 		arm_lengths = {
 			left = {upper = 0.0, lower = 0.0},
 			right = {upper = 0.0, lower = 0.0}

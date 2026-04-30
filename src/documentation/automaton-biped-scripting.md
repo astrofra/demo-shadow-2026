@@ -298,6 +298,7 @@ Canonical action types:
 - `kneel`
 - `look_at`
 - `clear_look_at`
+- `say`
 - `sound`
 - `instance_animation`
 - `camera`
@@ -387,6 +388,14 @@ For example, `lock arm` and `lock-arm` will be interpreted as `lock_arm`.
 {type = "clear_look_at", stiffness = 90}
 ```
 
+`say`
+
+```lua
+{type = "say", text = "Hello from the automaton"}
+{type = "say", text = "Bonjour", lang = "fr", volume = 0.8}
+{type = "say", phrase = "ax ay iy", phonemes = true}
+```
+
 `sound`
 
 ```lua
@@ -440,6 +449,18 @@ The implementation lowercases the input, so `Left` and `RIGHT` are also accepted
 - `stop = true` stops the current playback for that id and ignores play fields
 - if the same id is played again while already active, the previous source is stopped first
 - the action is non-blocking
+
+`say` details:
+
+- `text`, `phrase`, or `value` is required
+- playback is synthesized on demand through the Lua `say` module, using `format = "raw"`
+- the generated buffer is bridged to HARFANG with `LoadLPCMSound(..., AFF_LPCM_44KHZ_S16_Mono)`
+- `lang` or `language` is optional
+- `volume` or `gain` is optional and defaults to `1.0`
+- `phonemes`, `amiga`, and `frame_ms` are forwarded when provided
+- this command currently expects the synth output to be mono 16-bit LPCM at `44100 Hz`
+- starting a new `say` playback stops and replaces the previous one if it is still active
+- the action is blocking until the spoken audio source reaches `SS_Stopped`
 
 `instance_animation` details:
 
@@ -515,6 +536,7 @@ The implementation lowercases the input, so `Left` and `RIGHT` are also accepted
 - `kneel`: completes when the pelvis offset animation reaches its target duration
 - `look_at`: completes when the look blend reaches `1.0` and the neck/head have settled to the requested look target
 - `clear_look_at`: completes when the look blend reaches `0.0` and the neck/head have settled back to rest
+- `say`: completes when the synthesized speech playback reaches `SS_Stopped`
 - `sound`: completes immediately after starting or stopping the keyed playback
 - `instance_animation`: completes immediately after starting or stopping the keyed playback
 - `camera`: completes immediately after changing the camera state
