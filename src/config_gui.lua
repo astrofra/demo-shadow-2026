@@ -18,12 +18,10 @@ function config_gui()
     local pressed_full_aaa = false
     local pressed_low_aaa = false
     local pressed_no_aaa = false
-    local pressed_winamp = false
 
     local full_aaa = true
     local low_aaa = false
     local no_aaa = false
-    local winamp = false
 
     local config_done = 0 -- 0 = stay, 1 = play demo, 2 = exit without playing the demo
 
@@ -80,29 +78,23 @@ function config_gui()
             hg.ImGuiSameLine()
             pressed_no_aaa = hg.ImGuiRadioButton("Classic", no_aaa)
             hg.ImGuiSameLine()
-            pressed_winamp = hg.ImGuiRadioButton("Winamp", winamp)
-            hg.ImGuiSameLine()
 
             if pressed_full_aaa then
                 full_aaa = true
                 low_aaa = false
                 no_aaa = false
-                winamp = false
             elseif pressed_low_aaa then
                 full_aaa = false
                 low_aaa = true
                 no_aaa = false
-                winamp = false
             elseif pressed_no_aaa then
                 full_aaa = false
                 low_aaa = false
                 no_aaa = true
-                winamp = false
             elseif pressed_winamp then
                 full_aaa = false
                 low_aaa = false
                 no_aaa = false
-                winamp = true
             end
 
             -- start demo
@@ -140,5 +132,5 @@ function config_gui()
     hg.RenderShutdown()
 	hg.DestroyWindow(win)
 
-    return config_done, default_res_x, default_res_y, default_fullscreen, full_aaa, low_aaa, no_aaa, winamp
+    return config_done, default_res_x, default_res_y, default_fullscreen, full_aaa, low_aaa, no_aaa
 end
