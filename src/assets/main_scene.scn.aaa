@@ -1,12 +1,12 @@
 {
 	"bloom_bias": 0.5,
-	"bloom_intensity": 0.10000000149011612,
-	"bloom_threshold": 5.0,
-	"exposure": 1.0,
-	"gamma": 2.200000047683716,
+	"bloom_intensity": 1.1200000047683716,
+	"bloom_threshold": 1.090000033378601,
+	"exposure": 2.25,
+	"gamma": 2.619999885559082,
 	"max_distance": 100.0,
-	"motion_blur": 1.0,
+	"motion_blur": 0.0,
 	"sample_count": 2,
-	"taa_weight": 0.10000000149011612,
-	"z_thickness": 0.10000000149011612
+	"taa_weight": 0.5,
+	"z_thickness": 2.6600000858306885
 }

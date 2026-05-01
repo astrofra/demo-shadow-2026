@@ -72,10 +72,12 @@
 			],
 			"materials": [
 				{
-					"blend_mode": "alpha",
+					"blend_mode": "opaque",
 					"depth_test": "less",
 					"face_culling": "cw",
-					"flags": [],
+					"flags": [
+						"EnableAlphaCut"
+					],
 					"program": "core/shader/pbr.hps",
 					"textures": [
 						{
@@ -85,6 +87,16 @@
 						}
 					],
 					"values": [
+						{
+							"name": "uAlphaCut",
+							"type": "vec4",
+							"value": [
+								0.10000000149011612,
+								0.0,
+								0.0,
+								0.0
+							]
+						},
 						{
 							"name": "uBaseOpacityColor",
 							"type": "vec4",

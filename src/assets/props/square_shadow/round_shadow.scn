@@ -72,10 +72,12 @@
 			],
 			"materials": [
 				{
-					"blend_mode": "alpha",
+					"blend_mode": "opaque",
 					"depth_test": "less",
 					"face_culling": "cw",
-					"flags": [],
+					"flags": [
+						"EnableAlphaCut"
+					],
 					"program": "core/shader/pbr.hps",
 					"textures": [
 						{

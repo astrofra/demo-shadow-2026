@@ -12,6 +12,8 @@ uniform vec4 uColorMul;
 uniform vec4 uAlphaCut;
 uniform vec4 uFog; // x = fog contribution (1.0 default)
 uniform vec4 uSelf; // x = multiply, y = pow
+uniform vec4 uMignolaLightTint; // xyz = warm light tint, w = blend
+uniform vec4 uMignolaDarkTint; // xyz = shadow lift tint, w = intensity
 
 // Texture slots
 SAMPLER2D(uBaseOpacityMap, 0);
@@ -24,37 +26,32 @@ float map(float value, float min1, float max1, float min2, float max2) {
   return min2 + (value - min1) * (max2 - min2) / (max1 - min1);
 }
 
-float ComputeUnifiedVignette(vec2 uv, vec2 center) {
-	vec2 delta = uv - center;
-	delta.x *= uResolution.x / max(uResolution.y, 1.0);
-	delta.y *= 1.15;
-
-	float radial = dot(delta, delta);
-	return 1.0 - smoothstep(0.08, 0.82, radial);
-}
-
-vec3 ApplyUnifiedVignette(vec3 color, vec2 uv) {
-	float vignette = ComputeUnifiedVignette(uv, vec2(0.5, 0.44));
-	vec3 edge_tint = vec3(0.78, 0.56, 0.98);
-	vec3 tinted_color = color * mix(edge_tint, vec3(1.0, 1.0, 1.0), vignette);
-	float edge_shade = mix(0.42, 1.0, vignette);
-	return tinted_color * edge_shade;
-}
-
 float ComputeLuminance(vec3 color) {
 	return dot(color, vec3(0.2126, 0.7152, 0.0722));
 }
 
-vec3 ConvergeDarkColor(vec3 color) {
-	vec3 shadow_tint = vec3(21.0 / 255.0, 1.0 / 255.0, 31.0 / 255.0);
-	vec3 black_floor = shadow_tint * 0.015;
-	float color_luminance = max(ComputeLuminance(color), 1e-4);
-	float tint_luminance = max(ComputeLuminance(shadow_tint), 1e-4);
-	vec3 luminance_preserved_tint = shadow_tint * (color_luminance / tint_luminance);
-	float near_black = 1.0 - smoothstep(0.0, 0.08, color_luminance);
-	float tint_amount = pow(near_black, 2.8) * 0.30;
-	color = mix(color, luminance_preserved_tint, tint_amount);
-	return max(color, black_floor);
+vec3 CompressMignolaAlbedo(vec3 albedo) {
+	float luma = max(ComputeLuminance(albedo), 1e-4);
+	float banded_luma = floor(pow(clamp(luma, 0.0, 1.0), 0.92) * 4.0 + 0.5) / 4.0;
+	vec3 luma_reprojected = albedo * (banded_luma / luma);
+	vec3 flatter = mix(vec3_splat(banded_luma), luma_reprojected, 0.62);
+	float highlight_keep = smoothstep(0.55, 0.92, luma);
+	float flatten_amount = mix(0.78, 0.42, highlight_keep);
+	return clamp(mix(albedo, flatter, flatten_amount), 0.0, 1.0);
+}
+
+vec3 ApplyMignolaSurfaceGrade(vec3 color) {
+	float luma = max(ComputeLuminance(color), 1e-4);
+	float light_tint_mix = clamp(uMignolaLightTint.w, 0.0, 1.0);
+	vec3 light_tint = mix(vec3_splat(1.0), uMignolaLightTint.xyz, light_tint_mix);
+	color *= light_tint;
+
+	float shadow_mask = 1.0 - smoothstep(0.10, 0.38, luma);
+	float shadow_crush = mix(0.24, 1.0, smoothstep(0.06, 0.56, luma));
+	color *= shadow_crush;
+
+	color += uMignolaDarkTint.xyz * (clamp(uMignolaDarkTint.w, 0.0, 1.0) * shadow_mask);
+	return max(color, vec3_splat(0.0));
 }
 
 //
@@ -157,16 +154,14 @@ vec3 GGX(vec3 V, vec3 N, float NdotV, vec3 L, vec3 albedo, float roughness, floa
 }
 
 //
-vec3 DistanceFog(vec3 pos, vec3 color, vec2 uv) {
+vec3 DistanceFog(vec3 pos, vec3 color) {
 	if (uFogState.y == 0.0)
 		return color;
 
 	float k = clamp((pos.z - uFogState.x) * uFogState.y, 0.0, 1.0);
 	k *= uFog.x;
-	float fog_vignette = ComputeUnifiedVignette(uv, vec2(0.5, 0.44));
-	vec3 fog_color = uFogColor.xyz;
-	fog_color *= mix(vec3(0.92, 0.88, 0.98), vec3(1.0, 1.0, 1.0), fog_vignette);
-	fog_color *= mix(0.88, 1.0, fog_vignette);
+	vec3 fog_color = mix(uFogColor.xyz, uMignolaLightTint.xyz, 0.18 * clamp(uMignolaLightTint.w, 0.0, 1.0));
+	fog_color += uMignolaDarkTint.xyz * (0.20 * clamp(uMignolaDarkTint.w, 0.0, 1.0));
 	return mix(color, fog_color, k);
 }
 
@@ -181,6 +176,7 @@ void main() {
 #endif // USE_BASE_COLOR_OPACITY_MAP
 
 	base_opacity *= uColorMul;
+	base_opacity.xyz = CompressMignolaAlbedo(base_opacity.xyz);
 
 #if DEPTH_ONLY != 1
 #if USE_OCCLUSION_ROUGHNESS_METALNESS_MAP
@@ -332,10 +328,8 @@ void main() {
 	color *= occ_rough_metal.x;
 	color += self.xyz;
 
-	vec2 screen_uv = gl_FragCoord.xy / uResolution.xy;
-	color = DistanceFog(view, color, screen_uv);
-	color = ApplyUnifiedVignette(color, screen_uv);
-	color = ConvergeDarkColor(color);
+	color = DistanceFog(view, color);
+	color = ApplyMignolaSurfaceGrade(color);
 #endif // DEPTH_ONLY != 1
 
 	float opacity = base_opacity.w;

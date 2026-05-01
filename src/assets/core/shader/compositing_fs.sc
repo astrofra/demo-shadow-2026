@@ -84,19 +84,12 @@ vec4 Sharpen(vec2 uv, float strength) {
 	return vec4(res.xyz, center.w);
 }
 
-vec3 ApplyTopPurpleFade(vec2 uv, vec3 color) {
-	vec3 purple = vec3((0.78/7.0)/2.0, (0.56/6.0)/2.0, (0.98/4.0)/2.0);
-	float fade_v = clamp(map(uv.y, 0.8, 1.0, 0.0, 1.0), 0.0, 1.0);
-	fade_v = pow(fade_v, 4.0);
-	return mix(color, purple, fade_v);
-}
-
 vec3 SampleCompositedColor(vec2 uv) {
 	vec2 safe_uv = clamp(uv, vec2(0.0, 0.0), vec2(1.0, 1.0));
 	float exposure = uAAAParams[1].x;
 	vec3 color = texture2D(u_color, safe_uv).xyz;
 	color = SimpleReinhardToneMapping(color, exposure);
-	return ApplyTopPurpleFade(safe_uv, color);
+	return color;
 }
 
 float ComputePerceivedLuma(vec3 color) {
@@ -104,7 +97,7 @@ float ComputePerceivedLuma(vec3 color) {
 }
 
 vec2 WarpCRTUV(vec2 uv) {
-	float curvature = max(uCompositingParams[1].x, 0.0);
+	float curvature = max(uCompositingParams[1].x, 0.0) * 0.18;
 	vec2 screen_pos = uv * 2.0 - vec2(1.0, 1.0);
 	float radius_sq = dot(screen_pos, screen_pos);
 
@@ -116,7 +109,7 @@ vec2 WarpCRTUV(vec2 uv) {
 }
 
 vec2 ApplyLeftLightShift(vec2 uv) {
-	float shift_strength = max(uCompositingParams[1].w, 0.0);
+	float shift_strength = max(uCompositingParams[1].w, 0.0) * 0.15;
 
 	if (shift_strength <= 0.0) {
 		return uv;
@@ -135,6 +128,32 @@ vec2 ApplyLeftLightShift(vec2 uv) {
 	return clamp(shifted_uv, vec2(0.0, 0.0), vec2(1.0, 1.0));
 }
 
+float SampleSceneDepth(vec2 uv) {
+	return texture2D(u_depth, clamp(uv, vec2(0.0, 0.0), vec2(1.0, 1.0))).r;
+}
+
+float ComputeDepthEdge(vec2 uv) {
+	vec2 texel = 1.0 / uResolution.xy;
+	float center = SampleSceneDepth(uv);
+	float edge = 0.0;
+	edge += abs(center - SampleSceneDepth(uv + vec2(texel.x, 0.0)));
+	edge += abs(center - SampleSceneDepth(uv - vec2(texel.x, 0.0)));
+	edge += abs(center - SampleSceneDepth(uv + vec2(0.0, texel.y)));
+	edge += abs(center - SampleSceneDepth(uv - vec2(0.0, texel.y)));
+	return clamp(edge * 120.0, 0.0, 1.0);
+}
+
+float ComputeLumaEdge(vec2 uv, vec3 center_color) {
+	vec2 texel = 1.0 / uResolution.xy;
+	float center = ComputePerceivedLuma(center_color);
+	float edge = 0.0;
+	edge += abs(center - ComputePerceivedLuma(SampleCompositedColor(uv + vec2(texel.x, 0.0))));
+	edge += abs(center - ComputePerceivedLuma(SampleCompositedColor(uv - vec2(texel.x, 0.0))));
+	edge += abs(center - ComputePerceivedLuma(SampleCompositedColor(uv + vec2(0.0, texel.y))));
+	edge += abs(center - ComputePerceivedLuma(SampleCompositedColor(uv - vec2(0.0, texel.y))));
+	return clamp(edge * 2.8, 0.0, 1.0);
+}
+
 float ComputeLensEdgeMask(vec2 uv) {
 	// Unit circle in normalized UV space maps to an ellipse inscribed in the screen.
 	vec2 ellipse_pos = uv * 2.0 - vec2(1.0, 1.0);
@@ -151,39 +170,11 @@ vec3 ApplyLensVignette(vec3 color, float lens_mask) {
 }
 
 vec3 ApplyLensEdgeDefect(vec2 uv, vec3 base_color, float lens_mask) {
-	float blur_strength = max(uCompositingParams[0].w, 0.0);
-	vec2 screen_pos = (uv - vec2(0.5, 0.5)) * uResolution.xy;
-	vec2 radial_dir = screen_pos / max(length(screen_pos), 0.0001);
-	vec2 tangent_dir = vec2(-radial_dir.y, radial_dir.x);
-	vec2 radial_uv = radial_dir / uResolution.xy;
-	vec2 tangent_uv = tangent_dir / uResolution.xy;
-
-	float chroma_pixels = lens_mask * 4.5 * blur_strength;
-	vec2 chroma_offset = radial_uv * chroma_pixels;
-	vec3 chroma_color;
-	chroma_color.r = SampleCompositedColor(uv + chroma_offset * 1.25).r;
-	chroma_color.g = SampleCompositedColor(uv - chroma_offset * 0.25).g;
-	chroma_color.b = SampleCompositedColor(uv - chroma_offset * 1.15).b;
-
-	float blur_pixels = lens_mask * 7.0 * blur_strength;
-	vec2 radial_blur = radial_uv * blur_pixels;
-	vec2 tangent_blur = tangent_uv * blur_pixels * 0.75;
-	vec3 blur_color = SampleCompositedColor(uv) * 0.24;
-	blur_color += SampleCompositedColor(uv + radial_blur) * 0.16;
-	blur_color += SampleCompositedColor(uv - radial_blur) * 0.16;
-	blur_color += SampleCompositedColor(uv + tangent_blur) * 0.12;
-	blur_color += SampleCompositedColor(uv - tangent_blur) * 0.12;
-	blur_color += SampleCompositedColor(uv + radial_blur + tangent_blur) * 0.05;
-	blur_color += SampleCompositedColor(uv + radial_blur - tangent_blur) * 0.05;
-	blur_color += SampleCompositedColor(uv - radial_blur + tangent_blur) * 0.05;
-	blur_color += SampleCompositedColor(uv - radial_blur - tangent_blur) * 0.05;
-
-	float lens_mix = clamp(lens_mask * blur_strength, 0.0, 1.0);
-	vec3 lens_color = mix(chroma_color, blur_color, lens_mix * 0.72);
-	return mix(base_color, lens_color, lens_mix);
+	float edge_ink_strength = clamp(lens_mask * max(uCompositingParams[0].w, 0.0) * 0.03, 0.0, 1.0);
+	return mix(base_color, vec3(0.01, 0.008, 0.006), edge_ink_strength);
 }
 
-vec3 ApplyCRTPhotoScreen(vec2 uv, vec3 color) {
+vec3 ApplyPrintTexture(vec2 uv, vec3 color) {
 	float density = max(uCompositingParams[1].y, 0.0);
 	float intensity = clamp(uCompositingParams[1].z, 0.0, 1.0);
 
@@ -191,34 +182,52 @@ vec3 ApplyCRTPhotoScreen(vec2 uv, vec3 color) {
 		return color;
 	}
 
-	vec2 grid = uv * uResolution.xy * density;
-	float vertical_trame = 0.5 + 0.5 * cos(grid.x * PI * 2.0);
-	float horizontal_trame = 0.5 + 0.5 * cos(grid.y * PI * 2.0);
-	float weave = 0.5 + 0.5 * cos((grid.x + grid.y * 0.18) * PI * 2.0);
+	vec2 grid = uv * uResolution.xy * (0.18 + density * 0.12);
+	float weave = 0.5 + 0.5 * cos((grid.x * 0.85 + grid.y * 0.22) * PI * 2.0);
+	float grain = 0.5 + 0.5 * cos((grid.y * 0.93 - grid.x * 0.17) * PI * 2.0);
+	float print_mask = 0.96 + (weave * 0.025 + grain * 0.015 - 0.02) * intensity;
+	return color * print_mask;
+}
 
-	float luminous_mesh = pow(vertical_trame * 0.68 + horizontal_trame * 0.20 + weave * 0.12, 1.15);
-	float glow_gain = mix(1.0, 0.88 + luminous_mesh * 0.24, intensity);
-	float gate_gain = mix(1.0, 0.92 + horizontal_trame * 0.08, intensity * 0.65);
+vec3 ApplyMignolaBanding(vec3 color) {
+	float luma = max(ComputePerceivedLuma(color), 1e-4);
+	float banded_luma = floor(pow(clamp(luma, 0.0, 1.0), 0.90) * 3.0 + 0.5) / 3.0;
+	vec3 banded_color = color * (banded_luma / luma);
+	float shadow_crush = mix(0.16, 1.0, smoothstep(0.05, 0.36, luma));
+	float midtone_mask = smoothstep(0.04, 0.78, luma) * (1.0 - smoothstep(0.78, 1.0, luma));
+	color *= shadow_crush;
+	color = mix(color, banded_color, 0.48 * midtone_mask);
+	return max(color, vec3_splat(0.0));
+}
 
-	return color * glow_gain * gate_gain;
+vec3 ApplyInkContours(vec2 uv, vec3 color) {
+	float luma = ComputePerceivedLuma(color);
+	float depth_edge = ComputeDepthEdge(uv);
+	float luma_edge = ComputeLumaEdge(uv, color);
+	float contour_boost = 1.0 + max(uCompositingParams[0].w, 0.0) * 0.02;
+	float shadow_bias = 1.0 - smoothstep(0.55, 1.0, luma);
+	float edge = clamp((depth_edge * 0.85 + luma_edge * 0.65) * contour_boost, 0.0, 1.0);
+	edge *= mix(0.65, 1.0, shadow_bias);
+	return mix(color, vec3(0.01, 0.008, 0.006), edge * 0.88);
 }
 
 void main() {
 #if 1
-	vec2 crt_uv = WarpCRTUV(v_texcoord0);
-	crt_uv = ApplyLeftLightShift(crt_uv);
-	vec4 in_sample = Sharpen(crt_uv, uAAAParams[2].y);
+	vec2 screen_uv = WarpCRTUV(v_texcoord0);
+	screen_uv = ApplyLeftLightShift(screen_uv);
+	vec4 in_sample = Sharpen(screen_uv, uAAAParams[2].y);
 
-	vec3 color = ApplyTopPurpleFade(crt_uv, in_sample.xyz);
-	float lens_mask = ComputeLensEdgeMask(crt_uv);
+	vec3 color = ApplyMignolaBanding(in_sample.xyz);
+	color = ApplyInkContours(screen_uv, color);
+	float lens_mask = ComputeLensEdgeMask(screen_uv);
 	if (lens_mask > 0.001) {
-		color = ApplyLensEdgeDefect(crt_uv, color, lens_mask);
+		color = ApplyLensEdgeDefect(screen_uv, color, lens_mask);
 	}
 	color = ApplyLensVignette(color, lens_mask);
 	float alpha = in_sample.w;
 #else
-	vec2 crt_uv = WarpCRTUV(v_texcoord0);
-	vec4 in_sample = texture2D(u_color, crt_uv);
+	vec2 screen_uv = WarpCRTUV(v_texcoord0);
+	vec4 in_sample = texture2D(u_color, screen_uv);
 
 	vec3 color = in_sample.xyz;
 	float alpha = in_sample.w;
@@ -233,8 +242,8 @@ void main() {
 	// gamma correction
 	float inv_gamma = uAAAParams[1].y;
 	color = pow(color, vec3_splat(inv_gamma));
-	color = ApplyCRTPhotoScreen(crt_uv, color);
+	color = ApplyPrintTexture(screen_uv, color);
 
 	gl_FragColor = vec4(color, alpha);
-	gl_FragDepth = texture2D(u_depth, clamp(crt_uv, vec2(0.0, 0.0), vec2(1.0, 1.0))).r;
+	gl_FragDepth = texture2D(u_depth, clamp(screen_uv, vec2(0.0, 0.0), vec2(1.0, 1.0))).r;
 }

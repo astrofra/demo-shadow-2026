@@ -5,7 +5,9 @@
 		{"name": "uAmbient", "type": "Vec4", "value": [0.0, 1.0, 1.0, 0.0]},
 		{"name": "uFog", "type": "Vec4", "value": [1.0, 0.0, 0.0, 0.0]},
 		{"name": "uAlphaCut", "type": "Vec4", "value": [0.2, 0.0, 0.0, 0.0]},
-		{"name": "uSelf", "type": "Vec4", "value": [1.0, 1.0, 0.0, 0.0]}
+		{"name": "uSelf", "type": "Vec4", "value": [1.0, 1.0, 0.0, 0.0]},
+		{"name": "uMignolaLightTint", "type": "Color", "value": [1.0, 0.94, 0.78, 0.45]},
+		{"name": "uMignolaDarkTint", "type": "Color", "value": [0.08, 0.04, 0.015, 0.25]}
 	]
 
 }
