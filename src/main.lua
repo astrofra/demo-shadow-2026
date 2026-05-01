@@ -332,7 +332,7 @@ local function create_pipeline_aaa(config, compositing_settings)
 		pipeline_aaa_config.sample_count = 2
 	end
 
-	pipeline_aaa_config.z_thickness = 0.01
+	pipeline_aaa_config.z_thickness = 0.1
 	pipeline_aaa_config.bloom_bias = 0.61
 	pipeline_aaa_config.bloom_intensity = 1.74 * 1.1
 	pipeline_aaa_config.bloom_threshold = 1.55
