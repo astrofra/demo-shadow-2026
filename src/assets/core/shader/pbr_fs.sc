@@ -35,10 +35,8 @@ float ComputeUnifiedVignette(vec2 uv, vec2 center) {
 
 vec3 ApplyUnifiedVignette(vec3 color, vec2 uv) {
 	float vignette = ComputeUnifiedVignette(uv, vec2(0.5, 0.44));
-	vec3 edge_tint = vec3(0.78, 0.56, 0.98);
-	vec3 tinted_color = color * mix(edge_tint, vec3(1.0, 1.0, 1.0), vignette);
-	float edge_shade = mix(0.42, 1.0, vignette);
-	return tinted_color * edge_shade;
+	float edge_shade = mix(0.12, 1.0, vignette);
+	return color * edge_shade;
 }
 
 float ComputeLuminance(vec3 color) {
@@ -46,15 +44,67 @@ float ComputeLuminance(vec3 color) {
 }
 
 vec3 ConvergeDarkColor(vec3 color) {
-	vec3 shadow_tint = vec3(21.0 / 255.0, 1.0 / 255.0, 31.0 / 255.0);
-	vec3 black_floor = shadow_tint * 0.015;
-	float color_luminance = max(ComputeLuminance(color), 1e-4);
-	float tint_luminance = max(ComputeLuminance(shadow_tint), 1e-4);
-	vec3 luminance_preserved_tint = shadow_tint * (color_luminance / tint_luminance);
-	float near_black = 1.0 - smoothstep(0.0, 0.08, color_luminance);
-	float tint_amount = pow(near_black, 2.8) * 0.30;
-	color = mix(color, luminance_preserved_tint, tint_amount);
-	return max(color, black_floor);
+	float color_luminance = ComputeLuminance(color);
+	float ink = 1.0 - smoothstep(0.02, 0.11, color_luminance);
+	return mix(color, vec3_splat(0.0), ink);
+}
+
+float ComputeSaturation(vec3 color) {
+	float cmin = min(color.x, min(color.y, color.z));
+	float cmax = max(color.x, max(color.y, color.z));
+	return cmax - cmin;
+}
+
+float PosterizeScalar(float value, float steps) {
+	return floor(value * steps + 0.5) / steps;
+}
+
+vec3 PosterizeColor(vec3 color, float steps) {
+	return vec3(
+		PosterizeScalar(color.x, steps),
+		PosterizeScalar(color.y, steps),
+		PosterizeScalar(color.z, steps)
+	);
+}
+
+vec3 BuildMignolaBase(vec3 sampled_color, vec3 uniform_color) {
+	vec3 paper_ochre = vec3(0.63, 0.54, 0.20);
+	vec3 dominant = mix(uniform_color, sampled_color, 0.18);
+	float saturation = max(ComputeSaturation(sampled_color), ComputeSaturation(uniform_color));
+	float neutral = ComputeLuminance(dominant);
+	vec3 warm_neutral = paper_ochre * mix(0.55, 1.25, neutral);
+	vec3 base = mix(warm_neutral, dominant, smoothstep(0.08, 0.32, saturation));
+	float keep_local_color = smoothstep(0.10, 0.48, saturation);
+	base = mix(vec3_splat(ComputeLuminance(base)), base, keep_local_color);
+	return clamp(PosterizeColor(base, 5.0), 0.0, 1.0);
+}
+
+float ComputeMignolaInk(float NdotV, vec3 N, float light_value) {
+	float silhouette = 1.0 - smoothstep(0.18, 0.38, NdotV);
+	float normal_break = smoothstep(0.08, 0.24, length(ddx(N)) + length(ddy(N)));
+	float light_break = smoothstep(0.03, 0.10, abs(ddx(light_value)) + abs(ddy(light_value)));
+	return clamp(max(silhouette * 0.95, max(normal_break * 0.75, light_break * 0.90)), 0.0, 1.0);
+}
+
+vec3 ApplyMignolaStyle(vec3 shaded_color, vec3 base_color, float NdotV, vec3 N) {
+	float light_luma = ComputeLuminance(shaded_color);
+	float light_peak = max(shaded_color.x, max(shaded_color.y, shaded_color.z));
+	float light_value = max(light_luma, light_peak * 0.55);
+
+	float shadow_band = smoothstep(0.08, 0.16, light_value);
+	float mid_band = smoothstep(0.22, 0.36, light_value);
+	float high_band = smoothstep(0.58, 0.80, light_value);
+
+	vec3 shadow_tone = base_color * 0.22;
+	vec3 mid_tone = base_color * 0.92;
+	vec3 high_tone = min(base_color * 1.14, vec3_splat(1.0));
+
+	vec3 stylized = mix(vec3_splat(0.0), shadow_tone, shadow_band);
+	stylized = mix(stylized, mid_tone, mid_band);
+	stylized = mix(stylized, high_tone, high_band);
+
+	float ink_mask = ComputeMignolaInk(NdotV, N, light_value);
+	return mix(stylized, vec3_splat(0.0), ink_mask);
 }
 
 //
@@ -164,9 +214,7 @@ vec3 DistanceFog(vec3 pos, vec3 color, vec2 uv) {
 	float k = clamp((pos.z - uFogState.x) * uFogState.y, 0.0, 1.0);
 	k *= uFog.x;
 	float fog_vignette = ComputeUnifiedVignette(uv, vec2(0.5, 0.44));
-	vec3 fog_color = uFogColor.xyz;
-	fog_color *= mix(vec3(0.92, 0.88, 0.98), vec3(1.0, 1.0, 1.0), fog_vignette);
-	fog_color *= mix(0.88, 1.0, fog_vignette);
+	vec3 fog_color = uFogColor.xyz * mix(0.38, 0.82, fog_vignette);
 	return mix(color, fog_color, k);
 }
 
@@ -181,6 +229,9 @@ void main() {
 #endif // USE_BASE_COLOR_OPACITY_MAP
 
 	base_opacity *= uColorMul;
+	vec4 flat_base_opacity = uBaseOpacityColor * uColorMul;
+	flat_base_opacity.w = base_opacity.w;
+	vec3 shading_albedo = mix(flat_base_opacity.xyz, base_opacity.xyz, 0.18);
 
 #if DEPTH_ONLY != 1
 #if USE_OCCLUSION_ROUGHNESS_METALNESS_MAP
@@ -199,6 +250,10 @@ void main() {
 	occ_rough_metal.x = map(occ_rough_metal.x, uAmbient.x, uAmbient.y, 0.0, 1.0);
 	occ_rough_metal.x = clamp(occ_rough_metal.x, 0.0, 1.0);
 	occ_rough_metal.x = pow(occ_rough_metal.x, uAmbient.z);
+	vec4 shading_occ_rough_metal = occ_rough_metal;
+	shading_occ_rough_metal.x = mix(1.0, occ_rough_metal.x, 0.18);
+	shading_occ_rough_metal.y = mix(uOcclusionRoughnessMetalnessColor.y, occ_rough_metal.y, 0.35);
+	shading_occ_rough_metal.z = mix(uOcclusionRoughnessMetalnessColor.z, occ_rough_metal.z, 0.35);
 
 	//
 #if USE_SELF_MAP
@@ -213,7 +268,8 @@ void main() {
 	vec3 view = mul(u_view, vec4(vWorldPos, 1.0)).xyz;
 	vec3 P = vWorldPos; // fragment world pos
 	vec3 V = normalize(GetT(u_invView) - P); // world space view vector
-	vec3 N = sign(dot(V, vNormal)) * normalize(vNormal); // geometry normal
+	vec3 geometry_normal = sign(dot(V, vNormal)) * normalize(vNormal); // geometry normal
+	vec3 N = geometry_normal;
 
 #if USE_NORMAL_MAP
 	vec3 T = normalize(vTangent);
@@ -221,9 +277,11 @@ void main() {
 
 	mat3 TBN = mtxFromRows(T, B, N);
 
-	N.xy = texture2D(uNormalMap, vTexCoord0).xy * 2.0 - 1.0;
-	N.z = sqrt(1.0 - dot(N.xy, N.xy));
-	N = normalize(mul(N, TBN));
+	vec3 mapped_normal;
+	mapped_normal.xy = texture2D(uNormalMap, vTexCoord0).xy * 2.0 - 1.0;
+	mapped_normal.z = sqrt(1.0 - dot(mapped_normal.xy, mapped_normal.xy));
+	mapped_normal = normalize(mul(mapped_normal, TBN));
+	N = normalize(mix(geometry_normal, mapped_normal, 0.35));
 #endif // USE_NORMAL_MAP
 
 	vec3 R = reflect(-V, N); // view reflection vector around normal
@@ -231,7 +289,7 @@ void main() {
 	float NdotV = clamp(dot(N, V), 0.0, 0.99);
 
 	vec3 F0 = vec3(0.04, 0.04, 0.04);
-	F0 = mix(F0, base_opacity.xyz, occ_rough_metal.b);
+	F0 = mix(F0, shading_albedo, shading_occ_rough_metal.b);
 
 	vec3 color = vec3(0.0, 0.0, 0.0);
 
@@ -265,7 +323,7 @@ void main() {
 #endif // FORWARD_PIPELINE_AAA
 		}
 #endif // SLOT0_SHADOWS
-		color += GGX(V, N, NdotV, uLightDir[0].xyz, base_opacity.xyz, occ_rough_metal.g, occ_rough_metal.b, F0, uLightDiffuse[0].xyz * k_shadow, uLightSpecular[0].xyz * k_shadow);
+		color += GGX(V, N, NdotV, uLightDir[0].xyz, shading_albedo, shading_occ_rough_metal.y, shading_occ_rough_metal.b, F0, uLightDiffuse[0].xyz * k_shadow, uLightSpecular[0].xyz * k_shadow * 0.12);
 	}
 	// SLOT 1: point/spot light (with optional shadows)
 	{
@@ -277,7 +335,7 @@ void main() {
 #if SLOT1_SHADOWS
 		attenuation *=SampleShadowPCF(uSpotShadowMap, vSpotShadowCoord, uShadowState.y, uShadowState.w, jitter);
 #endif // SLOT1_SHADOWS
-		color += GGX(V, N, NdotV, L, base_opacity.xyz, occ_rough_metal.g, occ_rough_metal.b, F0, uLightDiffuse[1].xyz * attenuation, uLightSpecular[1].xyz * attenuation);
+		color += GGX(V, N, NdotV, L, shading_albedo, shading_occ_rough_metal.y, shading_occ_rough_metal.b, F0, uLightDiffuse[1].xyz * attenuation, uLightSpecular[1].xyz * attenuation * 0.12);
 	}
 	// SLOT 2-N: point/spot light (no shadows) [todo]
 	{
@@ -287,7 +345,7 @@ void main() {
 			L /= max(distance, 1e-8);
 			float attenuation = LightAttenuation(L, uLightDir[i].xyz, distance, uLightPos[i].w, uLightDir[i].w, uLightDiffuse[i].w);
 
-			color += GGX(V, N, NdotV, L, base_opacity.xyz, occ_rough_metal.g, occ_rough_metal.b, F0, uLightDiffuse[i].xyz * attenuation, uLightSpecular[i].xyz * attenuation);
+			color += GGX(V, N, NdotV, L, shading_albedo, shading_occ_rough_metal.y, shading_occ_rough_metal.b, F0, uLightDiffuse[i].xyz * attenuation, uLightSpecular[i].xyz * attenuation * 0.12);
 		}
 	}
 
@@ -304,7 +362,7 @@ void main() {
 #endif
 
 	vec3 irradiance = textureCube(uIrradianceMap, ReprojectProbe(P, N)).xyz;
-	vec3 radiance = textureCubeLod(uRadianceMap, ReprojectProbe(P, R), occ_rough_metal.y * MAX_REFLECTION_LOD).xyz;
+	vec3 radiance = textureCubeLod(uRadianceMap, ReprojectProbe(P, R), shading_occ_rough_metal.y * MAX_REFLECTION_LOD).xyz;
 
 #if FORWARD_PIPELINE_AAA
 	vec4 ss_irradiance = texture2D(uSSIrradianceMap, gl_FragCoord.xy / uResolution.xy);
@@ -314,26 +372,27 @@ void main() {
 	radiance = mix(radiance, ss_radiance.xyz, ss_radiance.w);
 #endif
 
-	vec3 diffuse = irradiance * base_opacity.xyz;
-	vec3 F = FresnelSchlickRoughness(NdotV, F0, occ_rough_metal.y);
-	vec2 brdf = texture2D(uBrdfMap, vec2(NdotV, occ_rough_metal.y)).xy;
-	vec3 specular = radiance * (F * brdf.x + brdf.y);
+	vec3 diffuse = irradiance * shading_albedo;
+	vec3 F = FresnelSchlickRoughness(NdotV, F0, shading_occ_rough_metal.y);
+	vec2 brdf = texture2D(uBrdfMap, vec2(NdotV, shading_occ_rough_metal.y)).xy;
+	vec3 specular = radiance * (F * brdf.x + brdf.y) * 0.12;
 #if FORWARD_PIPELINE_AAA
 	specular *= uAAAParams[2].x; // * specular weight
 #endif
 
 	vec3 kS = specular;
 	vec3 kD = vec3_splat(1.) - kS;
-	kD *= 1. - occ_rough_metal.z;
+	kD *= 1. - shading_occ_rough_metal.z;
 
-	color += kD * diffuse;
+	color += kD * diffuse * 0.20;
 	color += specular;
-	color += uAmbientColor.xyz;
-	color *= occ_rough_metal.x;
+	color += uAmbientColor.xyz * 0.10;
+	color *= shading_occ_rough_metal.x;
 	color += self.xyz;
 
 	vec2 screen_uv = gl_FragCoord.xy / uResolution.xy;
 	color = DistanceFog(view, color, screen_uv);
+	color = ApplyMignolaStyle(color, BuildMignolaBase(base_opacity.xyz, flat_base_opacity.xyz), NdotV, N);
 	color = ApplyUnifiedVignette(color, screen_uv);
 	color = ConvergeDarkColor(color);
 #endif // DEPTH_ONLY != 1
@@ -350,7 +409,7 @@ void main() {
 	vec3 N_view = mul(u_view, vec4(N, 0)).xyz;
 	vec2 velocity = vec2(vProjPos.xy / vProjPos.w - vPrevProjPos.xy / vPrevProjPos.w);
 	gl_FragData[0] = vec4(N_view.xyz, vProjPos.z);
-	gl_FragData[1] = vec4(velocity.xy, occ_rough_metal.y, 0.);
+	gl_FragData[1] = vec4(velocity.xy, shading_occ_rough_metal.y, 0.);
 #else // FORWARD_PIPELINE_AAA_PREPASS
 	// incorrectly apply gamma correction at fragment shader level in the non-AAA pipeline
 #if FORWARD_PIPELINE_AAA != 1
